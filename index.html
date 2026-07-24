@@ -137,7 +137,12 @@
   <div id="view-schedule" class="view active">
     <div class="section-header">
       <h2>Game day schedule</h2>
-      <select id="filter-campus" onchange="renderScheduleGrid()" style="width:180px;"><option value="">All campuses</option></select>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-sm" onclick="changeMonth(-1)">&#8592; Prev</button>
+        <span id="month-label" style="font-weight:600;font-size:14px;min-width:110px;text-align:center;"></span>
+        <button class="btn btn-secondary btn-sm" onclick="changeMonth(1)">Next &#8594;</button>
+        <select id="filter-campus" onchange="renderScheduleGrid()" style="width:170px;"><option value="">All campuses</option></select>
+      </div>
     </div>
     <div class="stat-grid" id="schedule-stats"></div>
     <div class="card">
@@ -339,46 +344,75 @@ function initials(name) {
 }
 
 // ---- SCHEDULE ----
+let currentMonth = new Date().getMonth();
+let currentYear  = new Date().getFullYear();
+
+function changeMonth(delta) {
+  currentMonth += delta;
+  if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+  if (currentMonth < 0)  { currentMonth = 11; currentYear--; }
+  renderScheduleGrid();
+}
+
 function renderScheduleGrid() {
-  const filter = document.getElementById('filter-campus').value;
+  // Refresh campus dropdown
   const campusSel = document.getElementById('filter-campus');
-  const prev = campusSel.value;
+  const prevCampus = campusSel.value;
   campusSel.innerHTML = '<option value="">All campuses</option>' +
     state.campuses.map(c=>`<option value="${c}">${c}</option>`).join('');
-  campusSel.value = prev;
+  campusSel.value = prevCampus;
+  const filter = campusSel.value;
 
-  const filled=state.slots.filter(s=>s.aceId).length, open=state.slots.filter(s=>!s.aceId).length;
-  const pending=state.trades.filter(t=>t.status==='pending').length;
+  // Month label
+  const monthName = new Date(currentYear, currentMonth, 1)
+    .toLocaleDateString('en-US', {month:'long', year:'numeric'});
+  document.getElementById('month-label').textContent = monthName;
+
+  // Filter slots to current month
+  const monthStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
+  let slots = state.slots.filter(s => s.date && s.date.startsWith(monthStr));
+  if (filter) slots = slots.filter(s => s.campus === filter);
+
+  // Stats always show full season totals
+  const filled  = state.slots.filter(s=>s.aceId).length;
+  const open    = state.slots.filter(s=>!s.aceId).length;
+  const pending = state.trades.filter(t=>t.status==='pending').length;
   document.getElementById('schedule-stats').innerHTML = `
-    <div class="stat"><div class="stat-value">${state.slots.length}</div><div class="stat-label">Total shifts</div></div>
+    <div class="stat"><div class="stat-value">${state.slots.length}</div><div class="stat-label">Season shifts</div></div>
     <div class="stat"><div class="stat-value">${filled}</div><div class="stat-label">Filled</div></div>
     <div class="stat"><div class="stat-value">${open}</div><div class="stat-label">Open</div></div>
     <div class="stat"><div class="stat-value">${pending}</div><div class="stat-label">Pending trades</div></div>`;
 
-  let slots = state.slots;
-  if (filter) slots = slots.filter(s=>s.campus===filter);
   const grid = document.getElementById('schedule-grid');
-  if (!slots.length) { grid.innerHTML='<div class="empty">No shifts scheduled yet.</div>'; return; }
-  const dates=[...new Set(slots.map(s=>s.date))].sort();
-  const campuses=filter?[filter]:[...new Set(slots.map(s=>s.campus))].sort();
-  let html='<div class="grid-wrap"><table><thead><tr><th>Campus</th>'+dates.map(d=>`<th>${fmtDate(d)}</th>`).join('')+'</tr></thead><tbody>';
-  campuses.forEach(campus=>{
-    html+=`<tr><td style="font-weight:600;white-space:nowrap;">${campus}</td>`;
-    dates.forEach(date=>{
-      const day=slots.filter(s=>s.campus===campus&&s.date===date);
-      if(!day.length){html+='<td style="background:var(--bg-surface);"></td>';return;}
-      html+='<td>'+day.map(s=>{
-        const ace=s.aceId?state.aces.find(a=>a.id===s.aceId):null;
+  if (!slots.length) {
+    grid.innerHTML='<div class="empty">No shifts scheduled for this month.</div>';
+    return;
+  }
+
+  const dates    = [...new Set(slots.map(s=>s.date))].sort();
+  const campuses = filter ? [filter] : [...new Set(slots.map(s=>s.campus))].sort();
+
+  let html = '<div class="grid-wrap"><table><thead><tr><th>Campus</th>' +
+    dates.map(d=>`<th>${fmtDate(d)}</th>`).join('') + '</tr></thead><tbody>';
+
+  campuses.forEach(campus => {
+    html += `<tr><td style="font-weight:600;white-space:nowrap;">${campus}</td>`;
+    dates.forEach(date => {
+      const day = slots.filter(s=>s.campus===campus && s.date===date);
+      if (!day.length) { html+='<td style="background:var(--bg-surface);"></td>'; return; }
+      html += '<td>' + day.map(s => {
+        const ace = s.aceId ? state.aces.find(a=>a.id===s.aceId) : null;
         return `<div class="shift-slot ${ace?'filled':'open'}">
           <div class="shift-label">${s.shift}</div>
           <div class="shift-ace">${ace?ace.name:'⚠ Open'}</div>
         </div>`;
-      }).join('')+'</td>';
+      }).join('') + '</td>';
     });
-    html+='</tr>';
+    html += '</tr>';
   });
-  html+='</tbody></table></div>';
-  grid.innerHTML=html;
+
+  html += '</tbody></table></div>';
+  grid.innerHTML = html;
 }
 
 // ---- PROFILE ----
