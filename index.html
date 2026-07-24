@@ -138,10 +138,12 @@
     <div class="section-header">
       <h2>Game day schedule</h2>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-secondary btn-sm" onclick="changeMonth(-1)">&#8592; Prev</button>
-        <span id="month-label" style="font-weight:600;font-size:14px;min-width:110px;text-align:center;"></span>
-        <button class="btn btn-secondary btn-sm" onclick="changeMonth(1)">Next &#8594;</button>
-        <select id="filter-campus" onchange="renderScheduleGrid()" style="width:170px;"><option value="">All campuses</option></select>
+        <select id="filter-campus" onchange="renderScheduleGrid()" style="width:180px;">
+          <option value="">All campuses</option>
+        </select>
+        <select id="filter-ace" onchange="renderScheduleGrid()" style="width:180px;">
+          <option value="">All ACEs</option>
+        </select>
       </div>
     </div>
     <div class="stat-grid" id="schedule-stats"></div>
@@ -344,36 +346,26 @@ function initials(name) {
 }
 
 // ---- SCHEDULE ----
-let currentMonth = new Date().getMonth();
-let currentYear  = new Date().getFullYear();
-
-function changeMonth(delta) {
-  currentMonth += delta;
-  if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-  if (currentMonth < 0)  { currentMonth = 11; currentYear--; }
-  renderScheduleGrid();
-}
-
 function renderScheduleGrid() {
-  // Refresh campus dropdown
+  // Refresh dropdowns
   const campusSel = document.getElementById('filter-campus');
+  const aceSel    = document.getElementById('filter-ace');
   const prevCampus = campusSel.value;
+  const prevAce    = aceSel.value;
+
   campusSel.innerHTML = '<option value="">All campuses</option>' +
     state.campuses.map(c=>`<option value="${c}">${c}</option>`).join('');
+  aceSel.innerHTML = '<option value="">All ACEs</option>' +
+    [...state.aces].sort((a,b)=>a.name.localeCompare(b.name))
+      .map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+
   campusSel.value = prevCampus;
-  const filter = campusSel.value;
+  aceSel.value    = prevAce;
 
-  // Month label
-  const monthName = new Date(currentYear, currentMonth, 1)
-    .toLocaleDateString('en-US', {month:'long', year:'numeric'});
-  document.getElementById('month-label').textContent = monthName;
+  const filterCampus = campusSel.value;
+  const filterAce    = aceSel.value;
 
-  // Filter slots to current month
-  const monthStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
-  let slots = state.slots.filter(s => s.date && s.date.startsWith(monthStr));
-  if (filter) slots = slots.filter(s => s.campus === filter);
-
-  // Stats always show full season totals
+  // Stats — always full season
   const filled  = state.slots.filter(s=>s.aceId).length;
   const open    = state.slots.filter(s=>!s.aceId).length;
   const pending = state.trades.filter(t=>t.status==='pending').length;
@@ -384,34 +376,52 @@ function renderScheduleGrid() {
     <div class="stat"><div class="stat-value">${pending}</div><div class="stat-label">Pending trades</div></div>`;
 
   const grid = document.getElementById('schedule-grid');
+
+  // Apply filters
+  let slots = [...state.slots];
+  if (filterCampus) slots = slots.filter(s=>s.campus===filterCampus);
+  if (filterAce)    slots = slots.filter(s=>s.aceId===filterAce);
+
   if (!slots.length) {
-    grid.innerHTML='<div class="empty">No shifts scheduled for this month.</div>';
+    grid.innerHTML = '<div class="empty">No shifts match the selected filters.</div>';
     return;
   }
 
-  const dates    = [...new Set(slots.map(s=>s.date))].sort();
-  const campuses = filter ? [filter] : [...new Set(slots.map(s=>s.campus))].sort();
+  // Determine which campuses to show
+  const campuses = filterCampus
+    ? [filterCampus]
+    : [...new Set(slots.map(s=>s.campus))].sort();
 
-  let html = '<div class="grid-wrap"><table><thead><tr><th>Campus</th>' +
-    dates.map(d=>`<th>${fmtDate(d)}</th>`).join('') + '</tr></thead><tbody>';
-
+  // Render each campus as its own table block (avoids mega-wide single table)
+  let html = '';
   campuses.forEach(campus => {
-    html += `<tr><td style="font-weight:600;white-space:nowrap;">${campus}</td>`;
+    const campusSlots = slots.filter(s=>s.campus===campus).sort((a,b)=>a.date.localeCompare(b.date));
+    if (!campusSlots.length) return;
+
+    const dates = [...new Set(campusSlots.map(s=>s.date))].sort();
+
+    html += `<div style="margin-bottom:24px;">
+      <div style="font-size:14px;font-weight:600;color:var(--green-dark);margin-bottom:8px;padding:6px 0;border-bottom:2px solid var(--green-light);">${campus}</div>
+      <div class="grid-wrap"><table><thead><tr><th style="white-space:nowrap;min-width:80px;">Date</th><th>Shifts</th></tr></thead><tbody>`;
+
     dates.forEach(date => {
-      const day = slots.filter(s=>s.campus===campus && s.date===date);
-      if (!day.length) { html+='<td style="background:var(--bg-surface);"></td>'; return; }
-      html += '<td>' + day.map(s => {
-        const ace = s.aceId ? state.aces.find(a=>a.id===s.aceId) : null;
-        return `<div class="shift-slot ${ace?'filled':'open'}">
-          <div class="shift-label">${s.shift}</div>
-          <div class="shift-ace">${ace?ace.name:'⚠ Open'}</div>
-        </div>`;
-      }).join('') + '</td>';
+      const daySlots = campusSlots.filter(s=>s.date===date);
+      html += `<tr>
+        <td style="white-space:nowrap;font-weight:500;vertical-align:top;padding-top:10px;">${fmtDate(date)}</td>
+        <td style="min-width:0;">` +
+        daySlots.map(s => {
+          const ace = s.aceId ? state.aces.find(a=>a.id===s.aceId) : null;
+          return `<div class="shift-slot ${ace?'filled':'open'}" style="display:inline-block;margin:3px 4px 3px 0;min-width:200px;">
+            <div class="shift-label">${s.shift}</div>
+            <div class="shift-ace">${ace?ace.name:'⚠ Open'}</div>
+          </div>`;
+        }).join('') +
+        `</td></tr>`;
     });
-    html += '</tr>';
+
+    html += `</tbody></table></div></div>`;
   });
 
-  html += '</tbody></table></div>';
   grid.innerHTML = html;
 }
 
