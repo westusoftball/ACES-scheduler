@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ACE Shift Scheduler</title>
+<style>
+  :root {
+    --green:#1D9E75;--green-light:#E1F5EE;--green-dark:#085041;
+    --amber:#BA7517;--amber-light:#FAEEDA;--amber-dark:#633806;
+    --red:#A32D2D;--red-light:#FCEBEB;
+    --blue:#185FA5;--blue-light:#E6F1FB;
+    --gray:#5F5E5A;--gray-light:#F1EFE8;--gray-border:#D3D1C7;
+    --text:#2C2C2A;--text-muted:#888780;
+    --bg:#ffffff;--bg-surface:#F8F7F4;
+    --radius:10px;--radius-sm:6px;
+    --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;color:var(--text);background:var(--bg-surface);line-height:1.5;}
+  .topbar{background:var(--green-dark);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;}
+  .topbar h1{font-size:17px;font-weight:600;letter-spacing:-.3px;}
+  .topbar .league{font-size:13px;opacity:.7;}
+  .container{max-width:940px;margin:0 auto;padding:24px 16px;}
+  .tabs{display:flex;gap:2px;background:var(--gray-light);border-radius:var(--radius);padding:4px;margin-bottom:24px;flex-wrap:wrap;}
+  .tab{flex:1;padding:9px 4px;border:none;background:none;border-radius:var(--radius-sm);cursor:pointer;font-size:14px;font-weight:500;color:var(--text-muted);transition:all .15s;text-align:center;min-width:80px;}
+  .tab.active{background:#fff;color:var(--text);box-shadow:var(--shadow);}
+  .tab:hover:not(.active){color:var(--text);}
+  .card{background:#fff;border:1px solid var(--gray-border);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow);}
+  .card-title{font-size:15px;font-weight:600;margin-bottom:14px;}
+  label{font-size:13px;color:var(--text-muted);display:block;margin-bottom:4px;}
+  input,select,textarea{width:100%;padding:9px 12px;border:1px solid var(--gray-border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);background:#fff;outline:none;transition:border .15s;}
+  input:focus,select:focus,textarea:focus{border-color:var(--green);}
+  .field{margin-bottom:14px;}
+  .row{display:flex;gap:12px;flex-wrap:wrap;}
+  .row .field{flex:1;min-width:140px;}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-size:14px;font-weight:500;transition:all .15s;}
+  .btn:active{transform:scale(.98);}
+  .btn-primary{background:var(--green);color:#fff;}
+  .btn-primary:hover{background:var(--green-dark);}
+  .btn-secondary{background:var(--gray-light);color:var(--text);border:1px solid var(--gray-border);}
+  .btn-secondary:hover{background:var(--gray-border);}
+  .btn-danger{background:var(--red-light);color:var(--red);border:1px solid #F7C1C1;}
+  .btn-danger:hover{background:#F7C1C1;}
+  .btn-sm{padding:5px 12px;font-size:13px;}
+  .btn-approve{background:var(--green-light);color:var(--green-dark);border:1px solid #9FE1CB;}
+  .btn-approve:hover{background:#9FE1CB;}
+  .btn-deny{background:var(--red-light);color:var(--red);border:1px solid #F7C1C1;}
+  .btn-deny:hover{background:#F7C1C1;}
+  .badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:500;}
+  .badge-pending{background:var(--amber-light);color:var(--amber-dark);}
+  .badge-approved{background:var(--green-light);color:var(--green-dark);}
+  .badge-denied{background:var(--red-light);color:var(--red);}
+  .badge-expired{background:var(--gray-light);color:var(--gray);}
+  .badge-open{background:var(--amber-light);color:var(--amber-dark);}
+  .badge-filled{background:var(--green-light);color:var(--green-dark);}
+  .grid-wrap{overflow-x:auto;}
+  table{border-collapse:collapse;width:100%;font-size:13px;}
+  th{background:var(--gray-light);padding:9px 12px;text-align:left;font-weight:600;border:1px solid var(--gray-border);white-space:nowrap;}
+  td{padding:6px 8px;border:1px solid var(--gray-border);vertical-align:top;min-width:130px;}
+  .shift-slot{background:var(--bg-surface);border-radius:var(--radius-sm);padding:5px 8px;margin:3px 0;border-left:3px solid var(--gray-border);}
+  .shift-slot.filled{border-left-color:var(--green);}
+  .shift-slot.open{border-left-color:var(--amber);}
+  .shift-label{font-size:11px;font-weight:600;color:var(--text-muted);}
+  .shift-ace{font-size:12px;color:var(--text);margin-top:1px;}
+  .ace-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-light);gap:8px;}
+  .ace-row:last-child{border-bottom:none;}
+  .ace-avatar{width:34px;height:34px;border-radius:50%;background:var(--blue-light);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;flex-shrink:0;}
+  .ace-info{flex:1;}
+  .ace-name{font-weight:500;font-size:14px;}
+  .ace-contact{font-size:12px;color:var(--text-muted);}
+  .trade-item{border:1px solid var(--gray-border);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;}
+  .trade-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px;}
+  .trade-title{font-weight:500;font-size:14px;}
+  .trade-meta{font-size:12px;color:var(--text-muted);}
+  .trade-actions{display:flex;gap:6px;margin-top:10px;}
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:20px;}
+  .stat{background:#fff;border:1px solid var(--gray-border);border-radius:var(--radius-sm);padding:12px;text-align:center;}
+  .stat-value{font-size:26px;font-weight:600;color:var(--green-dark);}
+  .stat-label{font-size:12px;color:var(--text-muted);margin-top:2px;}
+  .empty{text-align:center;padding:32px;color:var(--text-muted);font-size:14px;}
+  .msg{padding:9px 14px;border-radius:var(--radius-sm);font-size:13px;margin-top:10px;}
+  .msg-success{background:var(--green-light);color:var(--green-dark);}
+  .msg-error{background:var(--red-light);color:var(--red);}
+  .view{display:none;}
+  .view.active{display:block;}
+  .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+  .section-header h2{font-size:16px;font-weight:600;}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--gray-light);border:1px solid var(--gray-border);border-radius:999px;padding:4px 12px;font-size:13px;}
+  .chip button{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;line-height:1;padding:0;}
+  .chip button:hover{color:var(--red);}
+  .campus-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .coord-lock{text-align:center;padding:40px 20px;}
+  .coord-lock h2{font-size:18px;font-weight:600;margin-bottom:8px;}
+  .coord-lock p{color:var(--text-muted);font-size:14px;margin-bottom:20px;}
+  .coord-lock input{max-width:260px;margin:0 auto 12px;display:block;text-align:center;letter-spacing:2px;}
+  .loading{text-align:center;padding:40px;color:var(--text-muted);}
+  .spinner{width:28px;height:28px;border:3px solid var(--gray-border);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* Profile specific */
+  .profile-hero{background:linear-gradient(135deg,var(--green-dark),var(--green));border-radius:var(--radius);padding:24px;color:#fff;margin-bottom:16px;display:flex;align-items:center;gap:20px;}
+  .profile-avatar{width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;flex-shrink:0;}
+  .profile-name{font-size:22px;font-weight:700;}
+  .profile-contact{font-size:14px;opacity:.85;margin-top:4px;}
+  .profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:600px){.profile-grid{grid-template-columns:1fr;}}
+  .info-block{background:var(--bg-surface);border-radius:var(--radius-sm);padding:14px;}
+  .info-block-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:10px;}
+  .info-row{display:flex;align-items:flex-start;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--gray-border);font-size:13px;gap:8px;}
+  .info-row:last-child{border-bottom:none;}
+  .info-label{color:var(--text-muted);flex-shrink:0;}
+  .info-value{text-align:right;font-weight:500;}
+  .shift-list-item{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--gray-border);font-size:13px;gap:8px;}
+  .shift-list-item:last-child{border-bottom:none;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="league">Youth Softball League</div>
+    <h1>ACE Shift Scheduler</h1>
+  </div>
+  <div id="sync-status" style="font-size:12px;opacity:.7;"></div>
+</div>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('schedule')">📅 Schedule</button>
+    <button class="tab" onclick="showTab('profile')">👤 Profile</button>
+    <button class="tab" onclick="showTab('request-trade')">🔄 Request trade</button>
+    <button class="tab" onclick="showTab('coordinator')">🔐 Coordinator</button>
+  </div>
+
+  <!-- SCHEDULE -->
+  <div id="view-schedule" class="view active">
+    <div class="section-header">
+      <h2>Game day schedule</h2>
+      <select id="filter-campus" onchange="renderScheduleGrid()" style="width:180px;"><option value="">All campuses</option></select>
+    </div>
+    <div class="stat-grid" id="schedule-stats"></div>
+    <div class="card">
+      <div id="schedule-grid"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- PROFILE -->
+  <div id="view-profile" class="view">
+    <div class="section-header"><h2>ACE profile</h2></div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="field" style="margin:0;">
+        <label>Select an ACE to view their profile</label>
+        <select id="profile-ace-select" onchange="renderProfile()" style="max-width:300px;">
+          <option value="">— Choose a name —</option>
+        </select>
+      </div>
+    </div>
+    <div id="profile-content"></div>
+  </div>
+
+  <!-- REQUEST TRADE -->
+  <div id="view-request-trade" class="view">
+    <div class="section-header"><h2>Request a shift trade</h2></div>
+    <div class="card">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:18px;">Submitting counts as your agreement. The other ACE gets an email to confirm — the schedule updates automatically once they do.</p>
+      <div class="row">
+        <div class="field"><label>Your name (ACE giving up the shift)</label><select id="trade-from" onchange="populateFromSlots()"><option value="">Select your name</option></select></div>
+        <div class="field"><label>Your shift to give up</label><select id="trade-from-slot"><option value="">— Select your name first —</option></select></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>ACE taking this shift</label><select id="trade-to"><option value="">Select name</option></select></div>
+        <div class="field"><label>Your name (for the record)</label><input id="trade-submitter" placeholder="Full name" /></div>
+      </div>
+      <div class="field"><label>Notes (optional)</label><input id="trade-notes" placeholder="e.g. Both agreed via text on June 3" /></div>
+      <button class="btn btn-primary" onclick="submitTrade()">Submit trade request</button>
+      <div id="trade-submit-msg"></div>
+    </div>
+  </div>
+
+  <!-- COORDINATOR -->
+  <div id="view-coordinator" class="view">
+    <div id="coord-locked">
+      <div class="coord-lock">
+        <h2>Coordinator access</h2>
+        <p>Enter the coordinator password to manage the schedule and approve trades.</p>
+        <input type="password" id="coord-password" placeholder="Password" onkeydown="if(event.key==='Enter')unlockCoord()" />
+        <button class="btn btn-primary" onclick="unlockCoord()">Unlock</button>
+        <div id="coord-lock-msg"></div>
+      </div>
+    </div>
+    <div id="coord-panel" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:8px;">
+        <h2 style="font-size:16px;font-weight:600;">Coordinator panel</h2>
+        <button class="btn btn-secondary btn-sm" onclick="lockCoord()">Lock</button>
+      </div>
+
+      <!-- Pending trades -->
+      <div class="card">
+        <div class="card-title">Pending trades <span style="font-size:13px;font-weight:400;color:var(--text-muted)">— auto-approved by email; use overrides only if needed</span></div>
+        <div id="coord-trades"></div>
+      </div>
+
+      <!-- Roster -->
+      <div class="card">
+        <div class="card-title">ACE roster</div>
+        <div class="row" style="margin-bottom:12px;">
+          <div class="field"><label>Full name</label><input id="ace-name" placeholder="Jane Smith" /></div>
+          <div class="field"><label>Phone</label><input id="ace-phone" placeholder="(713) 555-0100" /></div>
+          <div class="field"><label>Email <span style="color:var(--red)">*</span></label><input id="ace-email" placeholder="jane@email.com" /></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="addAce()">Add ACE</button>
+        <div id="ace-msg"></div>
+        <div id="ace-list" style="margin-top:16px;"></div>
+      </div>
+
+      <!-- Campuses -->
+      <div class="card">
+        <div class="card-title">Campuses</div>
+        <div style="display:flex;gap:8px;align-items:flex-end;">
+          <div class="field" style="flex:1;margin:0;"><input id="campus-input" placeholder="Campus name" onkeydown="if(event.key==='Enter')addCampus()" /></div>
+          <button class="btn btn-primary btn-sm" onclick="addCampus()">Add</button>
+        </div>
+        <div id="campus-chips" class="campus-chips"></div>
+      </div>
+
+      <!-- Add shift slots -->
+      <div class="card">
+        <div class="card-title">Add shift slot</div>
+        <div class="row">
+          <div class="field"><label>Campus</label><select id="slot-campus"></select></div>
+          <div class="field"><label>Date</label><input id="slot-date" type="date" /></div>
+          <div class="field"><label>Shift time</label>
+            <select id="slot-shift">
+              <option>5:00-7:00pm</option><option>7:00-9:00pm</option>
+              <option>8:30-10:30am</option><option>10:30am-12:30pm</option>
+              <option>12:30-2:30pm</option><option>Morning (9–11am)</option>
+              <option>Midday (11am–1pm)</option><option>Afternoon (1–3pm)</option>
+              <option>Evening (5–7pm)</option><option>Evening (7–9pm)</option>
+            </select>
+          </div>
+          <div class="field"><label>Assign ACE</label><select id="slot-ace"><option value="">— Unassigned —</option></select></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="addSlot()">Add slot</button>
+        <div id="slot-msg"></div>
+      </div>
+
+      <!-- Tarp Crew -->
+      <div class="card">
+        <div class="card-title">Tarp crew assignments</div>
+        <div class="row" style="margin-bottom:12px;">
+          <div class="field"><label>ACE</label><select id="tarp-ace"><option value="">Select ACE</option></select></div>
+          <div class="field"><label>Day</label>
+            <select id="tarp-day">
+              <option>Sunday</option><option>Monday</option><option>Tuesday</option>
+              <option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option>
+            </select>
+          </div>
+          <div class="field"><label>Section</label>
+            <select id="tarp-section">
+              <option>South Campus &amp; McGovern</option>
+              <option>McGovern Captains</option>
+              <option>WUES</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="addTarp()">Add assignment</button>
+        <div id="tarp-msg"></div>
+        <div id="tarp-list" style="margin-top:16px;"></div>
+      </div>
+
+      <!-- Committees -->
+      <div class="card">
+        <div class="card-title">Committee assignments</div>
+        <div class="row" style="margin-bottom:12px;">
+          <div class="field"><label>ACE</label><select id="comm-ace"><option value="">Select ACE</option></select></div>
+          <div class="field"><label>Role / committee</label><input id="comm-role" placeholder="e.g. 10U Eval" /></div>
+          <div class="field"><label>Board contact</label><input id="comm-contact" placeholder="e.g. Austen Morris" /></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="addCommittee()">Add assignment</button>
+        <div id="comm-msg"></div>
+        <div id="comm-list" style="margin-top:16px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
+let state = { aces:[], campuses:[], slots:[], trades:[], tarp:[], committees:[] };
+let coordUnlocked = false;
+
+window.addEventListener('load', async () => { await loadAll(); });
+
+async function loadAll() {
+  setSyncStatus('Syncing…');
+  try { state = await api('getAll'); render(); setSyncStatus(''); }
+  catch(e) { setSyncStatus('⚠ Could not connect'); }
+}
+
+function setSyncStatus(msg) { document.getElementById('sync-status').textContent = msg; }
+
+async function api(action, params={}) {
+  const url = new URL(SCRIPT_URL);
+  url.searchParams.set('action', action);
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k,v));
+  const res = await fetch(url.toString());
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+  return json;
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name==='schedule') renderScheduleGrid();
+  if (name==='profile') renderProfileDropdown();
+  if (name==='request-trade') renderTradeForm();
+  if (name==='coordinator' && coordUnlocked) renderCoordPanel();
+}
+
+function render() {
+  renderScheduleGrid();
+  renderProfileDropdown();
+  renderTradeForm();
+  if (coordUnlocked) renderCoordPanel();
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const [y,m,d]=iso.split('-').map(Number);
+  return new Date(y,m-1,d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+
+function initials(name) {
+  return (name||'').split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase();
+}
+
+// ---- SCHEDULE ----
+function renderScheduleGrid() {
+  const filter = document.getElementById('filter-campus').value;
+  const campusSel = document.getElementById('filter-campus');
+  const prev = campusSel.value;
+  campusSel.innerHTML = '<option value="">All campuses</option>' +
+    state.campuses.map(c=>`<option value="${c}">${c}</option>`).join('');
+  campusSel.value = prev;
+
+  const filled=state.slots.filter(s=>s.aceId).length, open=state.slots.filter(s=>!s.aceId).length;
+  const pending=state.trades.filter(t=>t.status==='pending').length;
+  document.getElementById('schedule-stats').innerHTML = `
+    <div class="stat"><div class="stat-value">${state.slots.length}</div><div class="stat-label">Total shifts</div></div>
+    <div class="stat"><div class="stat-value">${filled}</div><div class="stat-label">Filled</div></div>
+    <div class="stat"><div class="stat-value">${open}</div><div class="stat-label">Open</div></div>
+    <div class="stat"><div class="stat-value">${pending}</div><div class="stat-label">Pending trades</div></div>`;
+
+  let slots = state.slots;
+  if (filter) slots = slots.filter(s=>s.campus===filter);
+  const grid = document.getElementById('schedule-grid');
+  if (!slots.length) { grid.innerHTML='<div class="empty">No shifts scheduled yet.</div>'; return; }
+  const dates=[...new Set(slots.map(s=>s.date))].sort();
+  const campuses=filter?[filter]:[...new Set(slots.map(s=>s.campus))].sort();
+  let html='<div class="grid-wrap"><table><thead><tr><th>Campus</th>'+dates.map(d=>`<th>${fmtDate(d)}</th>`).join('')+'</tr></thead><tbody>';
+  campuses.forEach(campus=>{
+    html+=`<tr><td style="font-weight:600;white-space:nowrap;">${campus}</td>`;
+    dates.forEach(date=>{
+      const day=slots.filter(s=>s.campus===campus&&s.date===date);
+      if(!day.length){html+='<td style="background:var(--bg-surface);"></td>';return;}
+      html+='<td>'+day.map(s=>{
+        const ace=s.aceId?state.aces.find(a=>a.id===s.aceId):null;
+        return `<div class="shift-slot ${ace?'filled':'open'}">
+          <div class="shift-label">${s.shift}</div>
+          <div class="shift-ace">${ace?ace.name:'⚠ Open'}</div>
+        </div>`;
+      }).join('')+'</td>';
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  grid.innerHTML=html;
+}
+
+// ---- PROFILE ----
+function renderProfileDropdown() {
+  const sel = document.getElementById('profile-ace-select');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— Choose a name —</option>' +
+    [...state.aces].sort((a,b)=>a.name.localeCompare(b.name))
+      .map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  if (prev) { sel.value=prev; renderProfile(); }
+}
+
+function renderProfile() {
+  const aceId = document.getElementById('profile-ace-select').value;
+  const el    = document.getElementById('profile-content');
+  if (!aceId) { el.innerHTML=''; return; }
+
+  const ace   = state.aces.find(a=>a.id===aceId);
+  if (!ace)   { el.innerHTML=''; return; }
+
+  const mySlots = state.slots.filter(s=>s.aceId===aceId).sort((a,b)=>a.date.localeCompare(b.date));
+  const myTarp  = state.tarp.filter(t=>t.aceId===aceId);
+  const myComm  = state.committees.filter(c=>c.aceId===aceId);
+  const myTrades= state.trades.filter(t=>t.fromId===aceId||t.toId===aceId)
+                    .sort((a,b)=>b.loggedAt.localeCompare(a.loggedAt)).slice(0,10);
+
+  let html = `
+    <div class="profile-hero">
+      <div class="profile-avatar">${initials(ace.name)}</div>
+      <div>
+        <div class="profile-name">${ace.name}</div>
+        <div class="profile-contact">
+          ${ace.phone?'📞 '+ace.phone:''}
+          ${ace.phone&&ace.email?' &nbsp;·&nbsp; ':''}
+          ${ace.email?'✉ '+ace.email:''}
+          ${!ace.phone&&!ace.email?'No contact info on file':''}
+        </div>
+      </div>
+    </div>
+    <div class="profile-grid">`;
+
+  // Duties card
+  html += `<div class="card" style="margin:0;">
+    <div class="card-title">Duties & assignments</div>
+    <div class="info-block" style="margin-bottom:12px;">
+      <div class="info-block-title">Tarp crew</div>`;
+  if (myTarp.length) {
+    myTarp.forEach(t=>{
+      html+=`<div class="info-row"><span class="info-label">${t.day}</span><span class="info-value">${t.section||'—'}</span></div>`;
+    });
+  } else {
+    html+='<div style="font-size:13px;color:var(--text-muted);">No tarp assignment on file</div>';
+  }
+  html+=`</div><div class="info-block">
+    <div class="info-block-title">Committee</div>`;
+  if (myComm.length) {
+    myComm.forEach(c=>{
+      html+=`<div class="info-row"><span class="info-label">${c.role}</span><span class="info-value" style="font-size:12px;">Contact: ${c.boardContact||'—'}</span></div>`;
+    });
+  } else {
+    html+='<div style="font-size:13px;color:var(--text-muted);">No committee assignment on file</div>';
+  }
+  html+=`</div></div>`;
+
+  // Season shifts card
+  html+=`<div class="card" style="margin:0;">
+    <div class="card-title">Season shifts (${mySlots.length})</div>`;
+  if (mySlots.length) {
+    html+=mySlots.map(s=>`
+      <div class="shift-list-item">
+        <div>
+          <div style="font-weight:500;">${fmtDate(s.date)}</div>
+          <div style="font-size:12px;color:var(--text-muted);">${s.campus} · ${s.shift}</div>
+        </div>
+        <span class="badge badge-filled">Assigned</span>
+      </div>`).join('');
+  } else {
+    html+='<div class="empty" style="padding:16px;">No shifts assigned</div>';
+  }
+  html+=`</div></div>`; // close grid
+
+  // Trade history — full width
+  if (myTrades.length) {
+    html+=`<div class="card">
+      <div class="card-title">Trade history (${myTrades.length})</div>`;
+    myTrades.forEach(t=>{
+      const from=state.aces.find(a=>a.id===t.fromId), to=state.aces.find(a=>a.id===t.toId);
+      const slot=state.slots.find(s=>s.id===t.slotId);
+      const isFrom=t.fromId===aceId;
+      html+=`<div class="shift-list-item">
+        <div>
+          <div style="font-size:13px;font-weight:500;">${isFrom?'Gave shift to '+to?.name:'Took shift from '+from?.name}</div>
+          <div style="font-size:12px;color:var(--text-muted);">${slot?fmtDate(slot.date)+' · '+slot.campus+' · '+slot.shift:'Slot removed'}</div>
+        </div>
+        <span class="badge badge-${t.status}">${t.status}</span>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+// ---- REQUEST TRADE ----
+function renderTradeForm() {
+  const sorted=[...state.aces].sort((a,b)=>a.name.localeCompare(b.name));
+  const opts='<option value="">Select name</option>'+sorted.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  document.getElementById('trade-from').innerHTML=opts;
+  document.getElementById('trade-to').innerHTML=opts;
+  document.getElementById('trade-from-slot').innerHTML='<option value="">— Select your name first —</option>';
+}
+
+function populateFromSlots() {
+  const fromId=document.getElementById('trade-from').value;
+  const sel=document.getElementById('trade-from-slot');
+  if(!fromId){sel.innerHTML='<option>— Select your name first —</option>';return;}
+  const mySlots=state.slots.filter(s=>s.aceId===fromId).sort((a,b)=>a.date.localeCompare(b.date));
+  if(!mySlots.length){sel.innerHTML='<option>No assigned shifts found</option>';return;}
+  sel.innerHTML=mySlots.map(s=>`<option value="${s.id}">${fmtDate(s.date)} — ${s.campus} — ${s.shift}</option>`).join('');
+}
+
+async function submitTrade() {
+  const fromId=document.getElementById('trade-from').value;
+  const slotId=document.getElementById('trade-from-slot').value;
+  const toId=document.getElementById('trade-to').value;
+  const submitter=document.getElementById('trade-submitter').value.trim();
+  const notes=document.getElementById('trade-notes').value.trim();
+  const msgEl=document.getElementById('trade-submit-msg');
+  if(!fromId||!toId||!slotId||!submitter){msgEl.innerHTML='<div class="msg msg-error">Please fill in all required fields.</div>';return;}
+  if(fromId===toId){msgEl.innerHTML='<div class="msg msg-error">Both ACEs must be different people.</div>';return;}
+  msgEl.innerHTML='<div class="msg">Submitting…</div>';
+  try {
+    await api('submitTrade',{fromId,toId,slotId,submitterName:submitter,notes});
+    await loadAll();
+    msgEl.innerHTML='<div class="msg msg-success">Trade request submitted! The other ACE will receive an email to confirm.</div>';
+    ['trade-from','trade-to','trade-submitter','trade-notes'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('trade-from-slot').innerHTML='<option>— Select your name first —</option>';
+  } catch(e){msgEl.innerHTML=`<div class="msg msg-error">Error: ${e.message}</div>`;}
+}
+
+// ---- COORDINATOR ----
+async function unlockCoord() {
+  const pw=document.getElementById('coord-password').value;
+  try {
+    const res=await api('checkPassword',{password:pw});
+    if(res.ok){coordUnlocked=true;document.getElementById('coord-locked').style.display='none';document.getElementById('coord-panel').style.display='block';renderCoordPanel();}
+    else document.getElementById('coord-lock-msg').innerHTML='<div class="msg msg-error">Incorrect password.</div>';
+  } catch(e){document.getElementById('coord-lock-msg').innerHTML='<div class="msg msg-error">Could not connect.</div>';}
+}
+function lockCoord(){coordUnlocked=false;document.getElementById('coord-locked').style.display='block';document.getElementById('coord-panel').style.display='none';document.getElementById('coord-password').value='';}
+
+function renderCoordPanel(){renderCoordTrades();renderAceList();renderCampusChips();refreshSlotSelects();renderTarpList();renderCommList();}
+
+function renderCoordTrades(){
+  const pending=state.trades.filter(t=>t.status==='pending');
+  const recent=state.trades.filter(t=>t.status!=='pending').slice(-10).reverse();
+  const el=document.getElementById('coord-trades');
+  let html='';
+  if(!pending.length) html='<div class="empty" style="padding:16px;">No pending trades.</div>';
+  else pending.forEach(t=>{
+    const from=state.aces.find(a=>a.id===t.fromId),to=state.aces.find(a=>a.id===t.toId),slot=state.slots.find(s=>s.id===t.slotId);
+    html+=`<div class="trade-item">
+      <div class="trade-header"><div>
+        <div class="trade-title">${from?.name||'?'} → ${to?.name||'?'}</div>
+        <div class="trade-meta">${slot?fmtDate(slot.date)+' · '+slot.campus+' · '+slot.shift:'Slot removed'}</div>
+        <div class="trade-meta">By ${t.submitterName}${t.notes?' · '+t.notes:''}</div>
+      </div><span class="badge badge-pending">Pending</span></div>
+      <div class="trade-actions">
+        <button class="btn btn-approve btn-sm" onclick="doTrade('manualApprove','${t.id}')">Override: Approve</button>
+        <button class="btn btn-deny btn-sm" onclick="doTrade('manualDeny','${t.id}')">Override: Deny</button>
+      </div></div>`;
+  });
+  if(recent.length){
+    html+=`<div style="font-size:13px;font-weight:600;margin:16px 0 8px;color:var(--text-muted);">Recent decisions</div>`;
+    recent.forEach(t=>{
+      const from=state.aces.find(a=>a.id===t.fromId),to=state.aces.find(a=>a.id===t.toId);
+      html+=`<div class="trade-item" style="opacity:.7;"><div class="trade-header"><div class="trade-title" style="font-size:13px;">${from?.name||'?'} → ${to?.name||'?'}</div><span class="badge badge-${t.status}">${t.status}</span></div><div class="trade-meta">By ${t.coordinator||'—'}</div></div>`;
+    });
+  }
+  el.innerHTML=html;
+}
+
+async function doTrade(action,id){
+  const coordinator=prompt('Your name (coordinator):');
+  if(!coordinator)return;
+  try{await api(action,{id,coordinator});await loadAll();renderCoordPanel();}
+  catch(e){alert('Error: '+e.message);}
+}
+
+function renderAceList(){
+  const el=document.getElementById('ace-list');
+  const sorted=[...state.aces].sort((a,b)=>a.name.localeCompare(b.name));
+  if(!sorted.length){el.innerHTML='<div class="empty">No ACEs yet.</div>';return;}
+  el.innerHTML=sorted.map(ace=>{
+    const shifts=state.slots.filter(s=>s.aceId===ace.id).length;
+    return `<div class="ace-row">
+      <div class="ace-avatar">${initials(ace.name)}</div>
+      <div class="ace-info"><div class="ace-name">${ace.name}</div><div class="ace-contact">${[ace.phone,ace.email].filter(Boolean).join(' · ')||'No contact'} · ${shifts} shift${shifts!==1?'s':''}</div></div>
+      <button class="btn btn-danger btn-sm" onclick="removeAce('${ace.id}')">Remove</button>
+    </div>`;
+  }).join('');
+}
+
+function renderCampusChips(){
+  const el=document.getElementById('campus-chips');
+  el.innerHTML=state.campuses.length
+    ?state.campuses.map(c=>`<span class="chip">${c}<button onclick="removeCampus('${c}')" title="Remove">×</button></span>`).join('')
+    :'<span style="font-size:13px;color:var(--text-muted);">No campuses yet.</span>';
+}
+
+function refreshSlotSelects(){
+  document.getElementById('slot-campus').innerHTML=state.campuses.map(c=>`<option>${c}</option>`).join('');
+  const aceOpts='<option value="">— Unassigned —</option>'+[...state.aces].sort((a,b)=>a.name.localeCompare(b.name)).map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  document.getElementById('slot-ace').innerHTML=aceOpts;
+  const aceOptsReq='<option value="">Select ACE</option>'+[...state.aces].sort((a,b)=>a.name.localeCompare(b.name)).map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  document.getElementById('tarp-ace').innerHTML=aceOptsReq;
+  document.getElementById('comm-ace').innerHTML=aceOptsReq;
+}
+
+function renderTarpList(){
+  const el=document.getElementById('tarp-list');
+  if(!state.tarp.length){el.innerHTML='<div class="empty" style="padding:12px;">No tarp assignments yet.</div>';return;}
+  const sorted=[...state.tarp].sort((a,b)=>{
+    const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    return days.indexOf(a.day)-days.indexOf(b.day);
+  });
+  el.innerHTML=sorted.map(t=>{
+    const ace=state.aces.find(a=>a.id===t.aceId);
+    return `<div class="ace-row">
+      <div class="ace-info"><div class="ace-name">${ace?.name||t.nameSnapshot||'Unknown'}</div><div class="ace-contact">${t.day} · ${t.section||'—'}</div></div>
+      <button class="btn btn-danger btn-sm" onclick="removeTarp('${t.id}')">Remove</button>
+    </div>`;
+  }).join('');
+}
+
+function renderCommList(){
+  const el=document.getElementById('comm-list');
+  if(!state.committees.length){el.innerHTML='<div class="empty" style="padding:12px;">No committee assignments yet.</div>';return;}
+  const sorted=[...state.committees].sort((a,b)=>a.role.localeCompare(b.role));
+  el.innerHTML=sorted.map(c=>{
+    const ace=state.aces.find(a=>a.id===c.aceId);
+    return `<div class="ace-row">
+      <div class="ace-info"><div class="ace-name">${ace?.name||c.nameSnapshot||'Unknown'}</div><div class="ace-contact">${c.role} · Contact: ${c.boardContact||'—'}</div></div>
+      <button class="btn btn-danger btn-sm" onclick="removeCommittee('${c.id}')">Remove</button>
+    </div>`;
+  }).join('');
+}
+
+async function addAce(){
+  const name=document.getElementById('ace-name').value.trim();
+  const phone=document.getElementById('ace-phone').value.trim();
+  const email=document.getElementById('ace-email').value.trim();
+  const msg=document.getElementById('ace-msg');
+  if(!name){msg.innerHTML='<div class="msg msg-error">Name required.</div>';return;}
+  if(!email){msg.innerHTML='<div class="msg msg-error">Email required.</div>';return;}
+  msg.innerHTML='<div class="msg">Saving…</div>';
+  try{
+    const res=await api('addAce',{name,phone,email});
+    state.aces.push({id:res.id,name,phone,email});
+    ['ace-name','ace-phone','ace-email'].forEach(id=>document.getElementById(id).value='');
+    msg.innerHTML=`<div class="msg msg-success">${name} added.</div>`;
+    renderCoordPanel();renderProfileDropdown();renderTradeForm();
+  }catch(e){msg.innerHTML=`<div class="msg msg-error">Error: ${e.message}</div>`;}
+}
+
+async function removeAce(id){
+  const ace=state.aces.find(a=>a.id===id);
+  if(!confirm(`Remove ${ace?.name}?`))return;
+  await api('removeAce',{id});
+  state.aces=state.aces.filter(a=>a.id!==id);
+  state.slots.forEach(s=>{if(s.aceId===id)s.aceId='';});
+  renderCoordPanel();renderProfileDropdown();renderTradeForm();renderScheduleGrid();
+}
+
+async function addCampus(){
+  const name=document.getElementById('campus-input').value.trim();
+  if(!name)return;
+  await api('addCampus',{name});
+  state.campuses.push(name);
+  document.getElementById('campus-input').value='';
+  renderCoordPanel();renderScheduleGrid();
+}
+
+async function removeCampus(name){
+  if(!confirm(`Remove campus "${name}"?`))return;
+  await api('removeCampus',{name});
+  state.campuses=state.campuses.filter(c=>c!==name);
+  renderCoordPanel();renderScheduleGrid();
+}
+
+async function addSlot(){
+  const campus=document.getElementById('slot-campus').value;
+  const date=document.getElementById('slot-date').value;
+  const shift=document.getElementById('slot-shift').value;
+  const aceId=document.getElementById('slot-ace').value;
+  const msg=document.getElementById('slot-msg');
+  if(!campus||!date){msg.innerHTML='<div class="msg msg-error">Campus and date required.</div>';return;}
+  msg.innerHTML='<div class="msg">Saving…</div>';
+  try{
+    const res=await api('addSlot',{campus,date,shift,aceId});
+    state.slots.push({id:res.id,campus,date,shift,aceId});
+    msg.innerHTML='<div class="msg msg-success">Slot added.</div>';
+    renderScheduleGrid();
+  }catch(e){msg.innerHTML=`<div class="msg msg-error">Error: ${e.message}</div>`;}
+}
+
+async function addTarp(){
+  const aceId=document.getElementById('tarp-ace').value;
+  const day=document.getElementById('tarp-day').value;
+  const section=document.getElementById('tarp-section').value;
+  const msg=document.getElementById('tarp-msg');
+  if(!aceId){msg.innerHTML='<div class="msg msg-error">Select an ACE.</div>';return;}
+  msg.innerHTML='<div class="msg">Saving…</div>';
+  try{
+    const res=await api('addTarp',{aceId,day,section});
+    state.tarp.push({id:res.id,aceId,day,section});
+    msg.innerHTML='<div class="msg msg-success">Tarp assignment added.</div>';
+    renderTarpList();
+  }catch(e){msg.innerHTML=`<div class="msg msg-error">Error: ${e.message}</div>`;}
+}
+
+async function removeTarp(id){
+  if(!confirm('Remove this tarp assignment?'))return;
+  await api('removeTarp',{id});
+  state.tarp=state.tarp.filter(t=>t.id!==id);
+  renderTarpList();
+}
+
+async function addCommittee(){
+  const aceId=document.getElementById('comm-ace').value;
+  const role=document.getElementById('comm-role').value.trim();
+  const boardContact=document.getElementById('comm-contact').value.trim();
+  const msg=document.getElementById('comm-msg');
+  if(!aceId||!role){msg.innerHTML='<div class="msg msg-error">ACE and role required.</div>';return;}
+  msg.innerHTML='<div class="msg">Saving…</div>';
+  try{
+    const res=await api('addCommittee',{aceId,role,boardContact});
+    state.committees.push({id:res.id,aceId,role,boardContact});
+    document.getElementById('comm-role').value='';document.getElementById('comm-contact').value='';
+    msg.innerHTML='<div class="msg msg-success">Committee assignment added.</div>';
+    renderCommList();
+  }catch(e){msg.innerHTML=`<div class="msg msg-error">Error: ${e.message}</div>`;}
+}
+
+async function removeCommittee(id){
+  if(!confirm('Remove this committee assignment?'))return;
+  await api('removeCommittee',{id});
+  state.committees=state.committees.filter(c=>c.id!==id);
+  renderCommList();
+}
+</script>
+</body>
+</html>
