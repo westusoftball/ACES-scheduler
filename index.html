@@ -170,17 +170,33 @@
   <div id="view-request-trade" class="view">
     <div class="section-header"><h2>Request a shift trade</h2></div>
     <div class="card">
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:18px;">Submitting counts as your agreement. The other ACE gets an email to confirm — the schedule updates automatically once they do.</p>
-      <div class="row">
-        <div class="field"><label>Your name (ACE giving up the shift)</label><select id="trade-from" onchange="populateFromSlots()"><option value="">Select your name</option></select></div>
-        <div class="field"><label>Your shift to give up</label><select id="trade-from-slot"><option value="">— Select your name first —</option></select></div>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:18px;">Submitting counts as your agreement. The other ACE gets an email to confirm — the schedule updates automatically for both of you once they do.</p>
+
+      <div style="background:var(--bg-surface);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:10px;">Your side</div>
+        <div class="row">
+          <div class="field"><label>Your name</label><select id="trade-from" onchange="populateFromSlots()"><option value="">Select your name</option></select></div>
+          <div class="field"><label>Shift you're giving up</label><select id="trade-from-slot"><option value="">— Select your name first —</option></select></div>
+        </div>
       </div>
+
+      <div style="background:var(--bg-surface);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:10px;">Their side</div>
+        <div class="row">
+          <div class="field"><label>ACE you're trading with</label><select id="trade-to" onchange="populateToSlots()"><option value="">Select name</option></select></div>
+          <div class="field"><label>Shift they're giving you</label><select id="trade-to-slot"><option value="">— Select their name first —</option></select></div>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:-4px;">Leave as <em>"Nothing — they're just covering for me"</em> if it's a one-way handoff.</div>
+      </div>
+
       <div class="row">
-        <div class="field"><label>ACE taking this shift</label><select id="trade-to"><option value="">Select name</option></select></div>
         <div class="field"><label>Your name (for the record)</label><input id="trade-submitter" placeholder="Full name" /></div>
+        <div class="field"><label>Notes (optional)</label><input id="trade-notes" placeholder="e.g. Agreed via text on June 3" /></div>
       </div>
-      <div class="field"><label>Notes (optional)</label><input id="trade-notes" placeholder="e.g. Both agreed via text on June 3" /></div>
-      <button class="btn btn-primary" onclick="submitTrade()">Submit trade request</button>
+
+      <div id="trade-preview" style="display:none;background:var(--green-light);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--green-dark);"></div>
+
+      <button class="btn btn-primary" onclick="submitTrade()">Submit request</button>
       <div id="trade-submit-msg"></div>
     </div>
   </div>
@@ -511,11 +527,16 @@ function renderProfile() {
     myTrades.forEach(t=>{
       const from=state.aces.find(a=>a.id===t.fromId), to=state.aces.find(a=>a.id===t.toId);
       const slot=state.slots.find(s=>s.id===t.slotId);
+      const slotB=t.toSlotId?state.slots.find(s=>s.id===t.toSlotId):null;
       const isFrom=t.fromId===aceId;
+      const other=isFrom?to?.name:from?.name;
+      const gained=isFrom?slotB:slot;
+      const lost=isFrom?slot:slotB;
       html+=`<div class="shift-list-item">
         <div>
-          <div style="font-size:13px;font-weight:500;">${isFrom?'Gave shift to '+to?.name:'Took shift from '+from?.name}</div>
-          <div style="font-size:12px;color:var(--text-muted);">${slot?fmtDate(slot.date)+' · '+slot.campus+' · '+slot.shift:'Slot removed'}</div>
+          <div style="font-size:13px;font-weight:500;">${slotB?'Swapped with ':'Shift '+(isFrom?'given to ':'covered for ')}${other||'?'}</div>
+          ${lost?`<div style="font-size:12px;color:var(--text-muted);">➖ ${slotLabel(lost)}</div>`:''}
+          ${gained?`<div style="font-size:12px;color:var(--text-muted);">✅ ${slotLabel(gained)}</div>`:''}
         </div>
         <span class="badge badge-${t.status}">${t.status}</span>
       </div>`;
@@ -533,33 +554,71 @@ function renderTradeForm() {
   document.getElementById('trade-from').innerHTML=opts;
   document.getElementById('trade-to').innerHTML=opts;
   document.getElementById('trade-from-slot').innerHTML='<option value="">— Select your name first —</option>';
+  document.getElementById('trade-to-slot').innerHTML='<option value="">— Select their name first —</option>';
 }
+
+function slotLabel(s){return `${fmtDate(s.date)} — ${s.campus} — ${s.shift}`;}
 
 function populateFromSlots() {
   const fromId=document.getElementById('trade-from').value;
   const sel=document.getElementById('trade-from-slot');
-  if(!fromId){sel.innerHTML='<option>— Select your name first —</option>';return;}
+  if(!fromId){sel.innerHTML='<option value="">— Select your name first —</option>';updatePreview();return;}
   const mySlots=state.slots.filter(s=>s.aceId===fromId).sort((a,b)=>a.date.localeCompare(b.date));
-  if(!mySlots.length){sel.innerHTML='<option>No assigned shifts found</option>';return;}
-  sel.innerHTML=mySlots.map(s=>`<option value="${s.id}">${fmtDate(s.date)} — ${s.campus} — ${s.shift}</option>`).join('');
+  if(!mySlots.length){sel.innerHTML='<option value="">No assigned shifts found</option>';updatePreview();return;}
+  sel.innerHTML=mySlots.map(s=>`<option value="${s.id}">${slotLabel(s)}</option>`).join('');
+  sel.onchange=updatePreview;
+  updatePreview();
+}
+
+function populateToSlots() {
+  const toId=document.getElementById('trade-to').value;
+  const sel=document.getElementById('trade-to-slot');
+  if(!toId){sel.innerHTML='<option value="">— Select their name first —</option>';updatePreview();return;}
+  const theirSlots=state.slots.filter(s=>s.aceId===toId).sort((a,b)=>a.date.localeCompare(b.date));
+  let html='<option value="">Nothing — they are just covering for me</option>';
+  html+=theirSlots.map(s=>`<option value="${s.id}">${slotLabel(s)}</option>`).join('');
+  sel.innerHTML=html;
+  sel.onchange=updatePreview;
+  updatePreview();
+}
+
+function updatePreview() {
+  const fromId=document.getElementById('trade-from').value;
+  const toId=document.getElementById('trade-to').value;
+  const slotAId=document.getElementById('trade-from-slot').value;
+  const slotBId=document.getElementById('trade-to-slot').value;
+  const box=document.getElementById('trade-preview');
+  if(!fromId||!toId||!slotAId){box.style.display='none';return;}
+  const from=state.aces.find(a=>a.id===fromId), to=state.aces.find(a=>a.id===toId);
+  const slotA=state.slots.find(s=>s.id===slotAId);
+  const slotB=slotBId?state.slots.find(s=>s.id===slotBId):null;
+  if(!from||!to||!slotA){box.style.display='none';return;}
+  box.style.display='block';
+  box.innerHTML = slotB
+    ? `<strong>Swap:</strong><br>${to.name} takes <strong>${slotLabel(slotA)}</strong><br>${from.name} takes <strong>${slotLabel(slotB)}</strong>`
+    : `<strong>Coverage:</strong><br>${to.name} takes <strong>${slotLabel(slotA)}</strong> — nothing given back`;
 }
 
 async function submitTrade() {
   const fromId=document.getElementById('trade-from').value;
   const slotId=document.getElementById('trade-from-slot').value;
   const toId=document.getElementById('trade-to').value;
+  const toSlotId=document.getElementById('trade-to-slot').value;
   const submitter=document.getElementById('trade-submitter').value.trim();
   const notes=document.getElementById('trade-notes').value.trim();
   const msgEl=document.getElementById('trade-submit-msg');
-  if(!fromId||!toId||!slotId||!submitter){msgEl.innerHTML='<div class="msg msg-error">Please fill in all required fields.</div>';return;}
+  if(!fromId||!toId||!slotId||!submitter){msgEl.innerHTML='<div class="msg msg-error">Please fill in your name, your shift, the other ACE, and your name for the record.</div>';return;}
   if(fromId===toId){msgEl.innerHTML='<div class="msg msg-error">Both ACEs must be different people.</div>';return;}
+  if(toSlotId&&toSlotId===slotId){msgEl.innerHTML='<div class="msg msg-error">Both sides of the swap are the same shift.</div>';return;}
   msgEl.innerHTML='<div class="msg">Submitting…</div>';
   try {
-    await api('submitTrade',{fromId,toId,slotId,submitterName:submitter,notes});
+    await api('submitTrade',{fromId,toId,slotId,toSlotId,submitterName:submitter,notes});
     await loadAll();
-    msgEl.innerHTML='<div class="msg msg-success">Trade request submitted! The other ACE will receive an email to confirm.</div>';
+    msgEl.innerHTML='<div class="msg msg-success">Request submitted! The other ACE will receive an email to confirm.</div>';
     ['trade-from','trade-to','trade-submitter','trade-notes'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('trade-from-slot').innerHTML='<option>— Select your name first —</option>';
+    document.getElementById('trade-from-slot').innerHTML='<option value="">— Select your name first —</option>';
+    document.getElementById('trade-to-slot').innerHTML='<option value="">— Select their name first —</option>';
+    document.getElementById('trade-preview').style.display='none';
   } catch(e){msgEl.innerHTML=`<div class="msg msg-error">Error: ${e.message}</div>`;}
 }
 
@@ -584,10 +643,12 @@ function renderCoordTrades(){
   if(!pending.length) html='<div class="empty" style="padding:16px;">No pending trades.</div>';
   else pending.forEach(t=>{
     const from=state.aces.find(a=>a.id===t.fromId),to=state.aces.find(a=>a.id===t.toId),slot=state.slots.find(s=>s.id===t.slotId);
+    const slotB=t.toSlotId?state.slots.find(s=>s.id===t.toSlotId):null;
     html+=`<div class="trade-item">
       <div class="trade-header"><div>
-        <div class="trade-title">${from?.name||'?'} → ${to?.name||'?'}</div>
-        <div class="trade-meta">${slot?fmtDate(slot.date)+' · '+slot.campus+' · '+slot.shift:'Slot removed'}</div>
+        <div class="trade-title">${from?.name||'?'} ${slotB?'⇄':'→'} ${to?.name||'?'} <span style="font-weight:400;font-size:12px;color:var(--text-muted);">${slotB?'swap':'coverage'}</span></div>
+        <div class="trade-meta">${to?.name||'?'} takes: ${slot?slotLabel(slot):'Slot removed'}</div>
+        ${slotB?`<div class="trade-meta">${from?.name||'?'} takes: ${slotLabel(slotB)}</div>`:''}
         <div class="trade-meta">By ${t.submitterName}${t.notes?' · '+t.notes:''}</div>
       </div><span class="badge badge-pending">Pending</span></div>
       <div class="trade-actions">
