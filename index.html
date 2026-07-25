@@ -6,10 +6,13 @@
 <title>ACE Shift Scheduler</title>
 <style>
   :root {
-    --green:#1D9E75;--green-light:#E1F5EE;--green-dark:#085041;
-    --amber:#BA7517;--amber-light:#FAEEDA;--amber-dark:#633806;
-    --red:#A32D2D;--red-light:#FCEBEB;
-    --blue:#185FA5;--blue-light:#E6F1FB;
+    /* WUSA brand blue — change these three to retune the whole app */
+    --brand:#1F5AA8;--brand-light:#E4EDF9;--brand-dark:#10346B;
+    /* Gold accent — open shifts, pending states */
+    --amber:#D9930D;--amber-light:#FCF0D6;--amber-dark:#6B4708;
+    /* Red accent — declines, removals */
+    --red:#C1272D;--red-light:#FBEAEA;--red-border:#F0BFC1;
+    --blue:#1F5AA8;--blue-light:#E4EDF9;
     --gray:#5F5E5A;--gray-light:#F1EFE8;--gray-border:#D3D1C7;
     --text:#2C2C2A;--text-muted:#888780;
     --bg:#ffffff;--bg-surface:#F8F7F4;
@@ -18,7 +21,7 @@
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;color:var(--text);background:var(--bg-surface);line-height:1.5;}
-  .topbar{background:var(--green-dark);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;}
+  .topbar{background:var(--brand-dark);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid var(--amber);}
   .topbar h1{font-size:17px;font-weight:600;letter-spacing:-.3px;}
   .topbar .league{font-size:13px;opacity:.7;}
   .container{max-width:940px;margin:0 auto;padding:24px 16px;}
@@ -30,42 +33,42 @@
   .card-title{font-size:15px;font-weight:600;margin-bottom:14px;}
   label{font-size:13px;color:var(--text-muted);display:block;margin-bottom:4px;}
   input,select,textarea{width:100%;padding:9px 12px;border:1px solid var(--gray-border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);background:#fff;outline:none;transition:border .15s;}
-  input:focus,select:focus,textarea:focus{border-color:var(--green);}
+  input:focus,select:focus,textarea:focus{border-color:var(--brand);}
   .field{margin-bottom:14px;}
   .row{display:flex;gap:12px;flex-wrap:wrap;}
   .row .field{flex:1;min-width:140px;}
   .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-size:14px;font-weight:500;transition:all .15s;}
   .btn:active{transform:scale(.98);}
-  .btn-primary{background:var(--green);color:#fff;}
-  .btn-primary:hover{background:var(--green-dark);}
+  .btn-primary{background:var(--brand);color:#fff;}
+  .btn-primary:hover{background:var(--brand-dark);}
   .btn-secondary{background:var(--gray-light);color:var(--text);border:1px solid var(--gray-border);}
   .btn-secondary:hover{background:var(--gray-border);}
-  .btn-danger{background:var(--red-light);color:var(--red);border:1px solid #F7C1C1;}
-  .btn-danger:hover{background:#F7C1C1;}
+  .btn-danger{background:var(--red-light);color:var(--red);border:1px solid var(--red-border);}
+  .btn-danger:hover{background:var(--red-border);}
   .btn-sm{padding:5px 12px;font-size:13px;}
-  .btn-approve{background:var(--green-light);color:var(--green-dark);border:1px solid #9FE1CB;}
-  .btn-approve:hover{background:#9FE1CB;}
-  .btn-deny{background:var(--red-light);color:var(--red);border:1px solid #F7C1C1;}
-  .btn-deny:hover{background:#F7C1C1;}
+  .btn-approve{background:var(--brand-light);color:var(--brand-dark);border:1px solid var(--brand);}
+  .btn-approve:hover{background:var(--brand);}
+  .btn-deny{background:var(--red-light);color:var(--red);border:1px solid var(--red-border);}
+  .btn-deny:hover{background:var(--red-border);}
   .badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:500;}
   .badge-pending{background:var(--amber-light);color:var(--amber-dark);}
-  .badge-approved{background:var(--green-light);color:var(--green-dark);}
+  .badge-approved{background:var(--brand-light);color:var(--brand-dark);}
   .badge-denied{background:var(--red-light);color:var(--red);}
   .badge-expired{background:var(--gray-light);color:var(--gray);}
   .badge-open{background:var(--amber-light);color:var(--amber-dark);}
-  .badge-filled{background:var(--green-light);color:var(--green-dark);}
+  .badge-filled{background:var(--brand-light);color:var(--brand-dark);}
   .grid-wrap{overflow-x:auto;}
   table{border-collapse:collapse;width:100%;font-size:13px;}
   th{background:var(--gray-light);padding:9px 12px;text-align:left;font-weight:600;border:1px solid var(--gray-border);white-space:nowrap;}
   td{padding:6px 8px;border:1px solid var(--gray-border);vertical-align:top;min-width:130px;}
   .shift-slot{background:var(--bg-surface);border-radius:var(--radius-sm);padding:5px 8px;margin:3px 0;border-left:3px solid var(--gray-border);}
-  .shift-slot.filled{border-left-color:var(--green);}
+  .shift-slot.filled{border-left-color:var(--brand);}
   .shift-slot.open{border-left-color:var(--amber);}
   .shift-label{font-size:11px;font-weight:600;color:var(--text-muted);}
   .shift-ace{font-size:12px;color:var(--text);margin-top:1px;}
   .ace-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-light);gap:8px;}
   .ace-row:last-child{border-bottom:none;}
-  .ace-avatar{width:34px;height:34px;border-radius:50%;background:var(--blue-light);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;flex-shrink:0;}
+  .ace-avatar{width:34px;height:34px;border-radius:50%;background:var(--amber-light);color:var(--amber-dark);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;flex-shrink:0;}
   .ace-info{flex:1;}
   .ace-name{font-weight:500;font-size:14px;}
   .ace-contact{font-size:12px;color:var(--text-muted);}
@@ -76,11 +79,11 @@
   .trade-actions{display:flex;gap:6px;margin-top:10px;}
   .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:20px;}
   .stat{background:#fff;border:1px solid var(--gray-border);border-radius:var(--radius-sm);padding:12px;text-align:center;}
-  .stat-value{font-size:26px;font-weight:600;color:var(--green-dark);}
+  .stat-value{font-size:26px;font-weight:600;color:var(--brand-dark);}
   .stat-label{font-size:12px;color:var(--text-muted);margin-top:2px;}
   .empty{text-align:center;padding:32px;color:var(--text-muted);font-size:14px;}
   .msg{padding:9px 14px;border-radius:var(--radius-sm);font-size:13px;margin-top:10px;}
-  .msg-success{background:var(--green-light);color:var(--green-dark);}
+  .msg-success{background:var(--brand-light);color:var(--brand-dark);}
   .msg-error{background:var(--red-light);color:var(--red);}
   .view{display:none;}
   .view.active{display:block;}
@@ -91,15 +94,21 @@
   .chip button:hover{color:var(--red);}
   .campus-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
   .coord-lock{text-align:center;padding:40px 20px;}
+  .subtabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px;border-bottom:1px solid var(--gray-border);padding-bottom:0;}
+  .subtab{padding:8px 14px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;}
+  .subtab:hover:not(.active){color:var(--text);}
+  .subtab.active{color:var(--brand-dark);border-bottom-color:var(--brand);}
+  .coord-section{display:none;}
+  .coord-section.active{display:block;}
   .coord-lock h2{font-size:18px;font-weight:600;margin-bottom:8px;}
   .coord-lock p{color:var(--text-muted);font-size:14px;margin-bottom:20px;}
   .coord-lock input{max-width:260px;margin:0 auto 12px;display:block;text-align:center;letter-spacing:2px;}
   .loading{text-align:center;padding:40px;color:var(--text-muted);}
-  .spinner{width:28px;height:28px;border:3px solid var(--gray-border);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;}
+  .spinner{width:28px;height:28px;border:3px solid var(--gray-border);border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;}
   @keyframes spin{to{transform:rotate(360deg);}}
 
   /* Profile specific */
-  .profile-hero{background:linear-gradient(135deg,var(--green-dark),var(--green));border-radius:var(--radius);padding:24px;color:#fff;margin-bottom:16px;display:flex;align-items:center;gap:20px;}
+  .profile-hero{background:linear-gradient(135deg,var(--brand-dark),var(--brand));border-radius:var(--radius);padding:24px;color:#fff;margin-bottom:16px;display:flex;align-items:center;gap:20px;}
   .profile-avatar{width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;flex-shrink:0;}
   .profile-name{font-size:22px;font-weight:700;}
   .profile-contact{font-size:14px;opacity:.85;margin-top:4px;}
@@ -119,7 +128,7 @@
 
 <div class="topbar">
   <div>
-    <div class="league">WUSA</div>
+    <div class="league">West University Softball Association</div>
     <h1>ACE Shift Scheduler</h1>
   </div>
   <div id="sync-status" style="font-size:12px;opacity:.7;"></div>
@@ -194,7 +203,7 @@
         <div class="field"><label>Notes (optional)</label><input id="trade-notes" placeholder="e.g. Agreed via text on June 3" /></div>
       </div>
 
-      <div id="trade-preview" style="display:none;background:var(--green-light);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--green-dark);"></div>
+      <div id="trade-preview" style="display:none;background:var(--brand-light);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--brand-dark);"></div>
 
       <button class="btn btn-primary" onclick="submitTrade()">Submit request</button>
       <div id="trade-submit-msg"></div>
@@ -218,12 +227,25 @@
         <button class="btn btn-secondary btn-sm" onclick="lockCoord()">Lock</button>
       </div>
 
+            <div class="subtabs">
+        <button class="subtab active" onclick="showCoordTab('trades')">Trades</button>
+        <button class="subtab" onclick="showCoordTab('roster')">Roster</button>
+        <button class="subtab" onclick="showCoordTab('campuses')">Campuses</button>
+        <button class="subtab" onclick="showCoordTab('shifts')">Shifts</button>
+        <button class="subtab" onclick="showCoordTab('tarp')">Tarp crew</button>
+        <button class="subtab" onclick="showCoordTab('committees')">Committees</button>
+      </div>
+
+      <div id="coord-sec-trades" class="coord-section active">
       <!-- Pending trades -->
       <div class="card">
         <div class="card-title">Pending trades <span style="font-size:13px;font-weight:400;color:var(--text-muted)">— auto-approved by email; use overrides only if needed</span></div>
         <div id="coord-trades"></div>
       </div>
 
+            </div>
+
+      <div id="coord-sec-roster" class="coord-section">
       <!-- Roster -->
       <div class="card">
         <div class="card-title">ACE roster</div>
@@ -234,9 +256,16 @@
         </div>
         <button class="btn btn-primary btn-sm" onclick="addAce()">Add ACE</button>
         <div id="ace-msg"></div>
-        <div id="ace-list" style="margin-top:16px;"></div>
+        <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--gray-light);">
+          <input id="ace-search" placeholder="Search roster by name, email, or phone…" oninput="renderAceList()" style="margin-bottom:4px;" />
+          <div id="ace-count" style="font-size:12px;color:var(--text-muted);margin-bottom:8px;"></div>
+        </div>
+        <div id="ace-list"></div>
       </div>
 
+            </div>
+
+      <div id="coord-sec-campuses" class="coord-section">
       <!-- Campuses -->
       <div class="card">
         <div class="card-title">Campuses</div>
@@ -247,6 +276,9 @@
         <div id="campus-chips" class="campus-chips"></div>
       </div>
 
+            </div>
+
+      <div id="coord-sec-shifts" class="coord-section">
       <!-- Add shift slots -->
       <div class="card">
         <div class="card-title">Add shift slot</div>
@@ -268,6 +300,9 @@
         <div id="slot-msg"></div>
       </div>
 
+            </div>
+
+      <div id="coord-sec-tarp" class="coord-section">
       <!-- Tarp Crew -->
       <div class="card">
         <div class="card-title">Tarp crew assignments</div>
@@ -289,9 +324,16 @@
         </div>
         <button class="btn btn-primary btn-sm" onclick="addTarp()">Add assignment</button>
         <div id="tarp-msg"></div>
-        <div id="tarp-list" style="margin-top:16px;"></div>
+        <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--gray-light);">
+          <input id="tarp-search" placeholder="Search by name, day, or section…" oninput="renderTarpList()" style="margin-bottom:4px;" />
+          <div id="tarp-count" style="font-size:12px;color:var(--text-muted);margin-bottom:8px;"></div>
+        </div>
+        <div id="tarp-list"></div>
       </div>
 
+            </div>
+
+      <div id="coord-sec-committees" class="coord-section">
       <!-- Committees -->
       <div class="card">
         <div class="card-title">Committee assignments</div>
@@ -302,9 +344,14 @@
         </div>
         <button class="btn btn-primary btn-sm" onclick="addCommittee()">Add assignment</button>
         <div id="comm-msg"></div>
-        <div id="comm-list" style="margin-top:16px;"></div>
+        <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--gray-light);">
+          <input id="comm-search" placeholder="Search by name, role, or board contact…" oninput="renderCommList()" style="margin-bottom:4px;" />
+          <div id="comm-count" style="font-size:12px;color:var(--text-muted);margin-bottom:8px;"></div>
+        </div>
+        <div id="comm-list"></div>
       </div>
     </div>
+      </div>
   </div>
 </div>
 
@@ -417,7 +464,7 @@ function renderScheduleGrid() {
     const dates = [...new Set(campusSlots.map(s=>s.date))].sort();
 
     html += `<div style="margin-bottom:24px;">
-      <div style="font-size:14px;font-weight:600;color:var(--green-dark);margin-bottom:8px;padding:6px 0;border-bottom:2px solid var(--green-light);">${campus}</div>
+      <div style="font-size:14px;font-weight:600;color:var(--brand-dark);margin-bottom:8px;padding:6px 0;border-bottom:2px solid var(--brand-light);">${campus}</div>
       <div class="grid-wrap"><table><thead><tr><th style="white-space:nowrap;min-width:80px;">Date</th><th>Shifts</th></tr></thead><tbody>`;
 
     dates.forEach(date => {
@@ -633,6 +680,14 @@ async function unlockCoord() {
 }
 function lockCoord(){coordUnlocked=false;document.getElementById('coord-locked').style.display='block';document.getElementById('coord-panel').style.display='none';document.getElementById('coord-password').value='';}
 
+function showCoordTab(name){
+  document.querySelectorAll('.subtab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.coord-section').forEach(s=>s.classList.remove('active'));
+  const sec=document.getElementById('coord-sec-'+name);
+  if(sec) sec.classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
 function renderCoordPanel(){renderCoordTrades();renderAceList();renderCampusChips();refreshSlotSelects();renderTarpList();renderCommList();}
 
 function renderCoordTrades(){
@@ -675,8 +730,17 @@ async function doTrade(action,id){
 
 function renderAceList(){
   const el=document.getElementById('ace-list');
-  const sorted=[...state.aces].sort((a,b)=>a.name.localeCompare(b.name));
-  if(!sorted.length){el.innerHTML='<div class="empty">No ACEs yet.</div>';return;}
+  const q=(document.getElementById('ace-search')?.value||'').toLowerCase().trim();
+  let sorted=[...state.aces].sort((a,b)=>a.name.localeCompare(b.name));
+  if(q) sorted=sorted.filter(a=>
+    (a.name||'').toLowerCase().includes(q) ||
+    (a.email||'').toLowerCase().includes(q) ||
+    (a.phone||'').toLowerCase().includes(q));
+  const countEl=document.getElementById('ace-count');
+  if(countEl) countEl.textContent=q
+    ? `${sorted.length} of ${state.aces.length} ACEs`
+    : `${state.aces.length} ACEs`;
+  if(!sorted.length){el.innerHTML='<div class="empty">'+(q?'No ACEs match that search.':'No ACEs yet.')+'</div>';return;}
   el.innerHTML=sorted.map(ace=>{
     const shifts=state.slots.filter(s=>s.aceId===ace.id).length;
     return `<div class="ace-row">
@@ -705,11 +769,20 @@ function refreshSlotSelects(){
 
 function renderTarpList(){
   const el=document.getElementById('tarp-list');
-  if(!state.tarp.length){el.innerHTML='<div class="empty" style="padding:12px;">No tarp assignments yet.</div>';return;}
-  const sorted=[...state.tarp].sort((a,b)=>{
-    const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    return days.indexOf(a.day)-days.indexOf(b.day);
-  });
+  const q=(document.getElementById('tarp-search')?.value||'').toLowerCase().trim();
+  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const nameFor=t=>(state.aces.find(a=>a.id===t.aceId)||{}).name||t.nameSnapshot||'';
+  let sorted=[...state.tarp].sort((a,b)=>
+    (days.indexOf(a.day)-days.indexOf(b.day)) || nameFor(a).localeCompare(nameFor(b)));
+  if(q) sorted=sorted.filter(t=>
+    nameFor(t).toLowerCase().includes(q) ||
+    (t.day||'').toLowerCase().includes(q) ||
+    (t.section||'').toLowerCase().includes(q));
+  const countEl=document.getElementById('tarp-count');
+  if(countEl) countEl.textContent=q
+    ? `${sorted.length} of ${state.tarp.length} assignments`
+    : `${state.tarp.length} assignments`;
+  if(!sorted.length){el.innerHTML='<div class="empty" style="padding:12px;">'+(q?'No assignments match that search.':'No tarp assignments yet.')+'</div>';return;}
   el.innerHTML=sorted.map(t=>{
     const ace=state.aces.find(a=>a.id===t.aceId);
     return `<div class="ace-row">
@@ -721,8 +794,19 @@ function renderTarpList(){
 
 function renderCommList(){
   const el=document.getElementById('comm-list');
-  if(!state.committees.length){el.innerHTML='<div class="empty" style="padding:12px;">No committee assignments yet.</div>';return;}
-  const sorted=[...state.committees].sort((a,b)=>a.role.localeCompare(b.role));
+  const q=(document.getElementById('comm-search')?.value||'').toLowerCase().trim();
+  const nameFor=c=>(state.aces.find(a=>a.id===c.aceId)||{}).name||c.nameSnapshot||'';
+  let sorted=[...state.committees].sort((a,b)=>
+    (a.role||'').localeCompare(b.role||'') || nameFor(a).localeCompare(nameFor(b)));
+  if(q) sorted=sorted.filter(c=>
+    nameFor(c).toLowerCase().includes(q) ||
+    (c.role||'').toLowerCase().includes(q) ||
+    (c.boardContact||'').toLowerCase().includes(q));
+  const countEl=document.getElementById('comm-count');
+  if(countEl) countEl.textContent=q
+    ? `${sorted.length} of ${state.committees.length} assignments`
+    : `${state.committees.length} assignments`;
+  if(!sorted.length){el.innerHTML='<div class="empty" style="padding:12px;">'+(q?'No assignments match that search.':'No committee assignments yet.')+'</div>';return;}
   el.innerHTML=sorted.map(c=>{
     const ace=state.aces.find(a=>a.id===c.aceId);
     return `<div class="ace-row">
