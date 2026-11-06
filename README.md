@@ -1,6 +1,7 @@
 # ACES Shift Scheduler (WUSA)
 
-Live site: https://cranead.github.io/ACES-scheduler/
+Live site: https://westusoftball.github.io/ACES-scheduler/
+Repo: https://github.com/westusoftball/ACES-scheduler (moved from cranead/ACES-scheduler; the old URL redirects)
 
 ## How it fits together
 
