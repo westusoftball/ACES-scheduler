@@ -403,7 +403,13 @@ async function loadAll() {
     state = await api('getAll');
     // Sheets sometimes stores a date cell as a real date, which arrives as an ISO
     // timestamp. Keep only the calendar day so every date is 'YYYY-MM-DD'.
-    state.slots.forEach(s => { s.date = String(s.date || '').slice(0, 10); });
+    state.slots.forEach(s => {
+      s.date = String(s.date || '').slice(0, 10);
+      // A shift label like '5:00 PM' can likewise come back as a time cell
+      // ('1899-12-30T17:00:00.000Z'); turn it back into the label.
+      const t = /^1899-12-30T(\d\d):(\d\d)/.exec(String(s.shift || ''));
+      if (t) { const h = +t[1]; s.shift = `${h % 12 || 12}:${t[2]} ${h < 12 ? 'AM' : 'PM'}`; }
+    });
     render(); setSyncStatus('');
   }
   catch(e) { setSyncStatus('⚠ Could not connect'); }
@@ -1003,9 +1009,9 @@ async function addSlot(){
   if(!campus||!date){msg.innerHTML='<div class="msg msg-error">Campus and date required.</div>';return;}
   msg.innerHTML='<div class="msg">Saving…</div>';
   try{
-    // Leading apostrophe makes Sheets store the date as text ('YYYY-MM-DD'),
-    // not a Date cell, so it round-trips exactly like the imported rows.
-    const res=await api('addSlot',{campus,date:"'"+date,shift,aceId});
+    // Leading apostrophes make Sheets store the date and shift as text,
+    // not Date/time cells, so they round-trip exactly like the imported rows.
+    const res=await api('addSlot',{campus,date:"'"+date,shift:"'"+shift,aceId});
     state.slots.push({id:res.id,campus,date,shift,aceId});
     msg.innerHTML='<div class="msg msg-success">Slot added.</div>';
     renderScheduleGrid();
