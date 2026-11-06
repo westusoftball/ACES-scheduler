@@ -43,6 +43,22 @@ the new person.
    ```
 3. **Deploy → Manage deployments → pencil → Version: New version → Deploy.**
 
+## Picking up a shift
+
+Every open or conflicted shift, in the grid and under **Needs coverage**, has a
+**Pick up this shift** button. The volunteer selects their name and the shift
+is theirs immediately: the slot's `aceId` changes, any previous answer is
+cleared so it shows "awaiting reply" for them, an approved row is logged in
+`Trades` (coordinator "Picked up via site"), and both people are emailed.
+Confirmed or awaiting shifts cannot be taken; the holder must flag a conflict
+first.
+
+Backend: the `claimSlot` function lives in `apps-script/Ack.gs` and needs its
+own router line in `Code.gs`, installed the same way as `setAck`:
+```javascript
+case 'claimSlot':       result = claimSlot(p); break;
+```
+
 ## Past shifts
 
 The schedule hides dates before today. Tick **Show past shifts** to see the

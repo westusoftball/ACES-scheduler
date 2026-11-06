@@ -85,6 +85,13 @@
   .toggle{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted);cursor:pointer;white-space:nowrap;}
   .toggle input{width:auto;margin:0;}
   details.past summary{cursor:pointer;font-size:13px;color:var(--text-muted);padding:10px 0 4px;}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:16px;}
+  .overlay.open{display:flex;}
+  .modal{background:#fff;border-radius:var(--radius);padding:22px;max-width:400px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.2);}
+  .modal h3{font-size:16px;font-weight:600;margin-bottom:6px;}
+  .modal .shift-desc{font-size:13px;color:var(--text-muted);margin-bottom:14px;}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
+  .pickup-btn{margin-top:5px;}
   .shift-label{font-size:11px;font-weight:600;color:var(--text-muted);}
   .shift-ace{font-size:12px;color:var(--text);margin-top:1px;}
   .ace-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-light);gap:8px;}
@@ -389,7 +396,23 @@
       </div>
   </div>
 </div>
-
+<!-- PICK UP SHIFT modal -->
+<div id="pickup-overlay" class="overlay" onclick="if(event.target===this)closePickup()">
+  <div class="modal">
+    <h3>Pick up this shift</h3>
+    <div class="shift-desc" id="pickup-desc"></div>
+    <div class="field">
+      <label>Your name</label>
+      <select id="pickup-ace"><option value="">Select your name</option></select>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);">The shift becomes yours right away. You and the person it came from both get an email.</div>
+    <div id="pickup-msg"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary btn-sm" onclick="closePickup()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="pickup-go" onclick="confirmPickup()">Take this shift</button>
+    </div>
+  </div>
+</div>
 <script>
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwroLlHOfSpxrH6mBd4WFrRkLb_6MX6qYAXMhtq4djqTrHD_GR9mpmuDc9D5Z0FdgMwaA/exec';
 let state = { aces:[], campuses:[], slots:[], trades:[], tarp:[], committees:[] };
@@ -516,7 +539,10 @@ function renderScheduleGrid() {
         return `<div class="shift-list-item">
           <div><div style="font-weight:500;">${slotLabel(s)}</div>
             <div style="font-size:12px;color:var(--text-muted);">${st==='conflict'?(ace?.name||'?')+' has a conflict and needs a trade':'No ACE assigned'}</div></div>
-          <span class="badge badge-${st}">${STATUS_BADGE[st]}</span>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+            <span class="badge badge-${st}">${STATUS_BADGE[st]}</span>
+            <button class="btn btn-primary btn-sm" onclick="pickUpShift('${s.id}')">Pick up this shift</button>
+          </div>
         </div>`;}).join('')}
     </div>` : '';
   const grid = document.getElementById('schedule-grid');
@@ -562,6 +588,7 @@ function renderScheduleGrid() {
             <div class="shift-label">${s.shift}</div>
             <div class="shift-ace">${ace?ace.name:'⚠ Open'}</div>
             ${st!=='open'?`<div class="shift-status">${STATUS_LABEL[st]}</div>`:''}
+            ${(st==='open'||st==='conflict')&&!isPast(s)?`<button class="btn btn-primary btn-sm pickup-btn" onclick="pickUpShift('${s.id}')">Pick up</button>`:''}
           </div>`;
         }).join('') +
         `</td></tr>`;
@@ -727,6 +754,43 @@ function goToTrade(slotId) {
   if (ace) document.getElementById('trade-submitter').value = ace.name;
   updatePreview();
   window.scrollTo({top:0, behavior:'smooth'});
+}
+// ---- PICK UP A SHIFT ----
+let pickupSlotId = null;
+function pickUpShift(slotId) {
+  const slot = state.slots.find(s=>s.id===slotId);
+  if (!slot) return;
+  pickupSlotId = slotId;
+  const holder = slot.aceId ? state.aces.find(a=>a.id===slot.aceId) : null;
+  document.getElementById('pickup-desc').textContent =
+    slotLabel(slot) + (holder ? ` — currently ${holder.name}, who has a conflict` : ' — currently open');
+  const sel = document.getElementById('pickup-ace');
+  sel.innerHTML = '<option value="">Select your name</option>' +
+    [...state.aces].filter(a=>a.id!==slot.aceId).sort((a,b)=>a.name.localeCompare(b.name))
+      .map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  const me = document.getElementById('profile-ace-select').value;
+  if (me && me !== slot.aceId) sel.value = me;
+  document.getElementById('pickup-msg').innerHTML = '';
+  document.getElementById('pickup-go').disabled = false;
+  document.getElementById('pickup-overlay').classList.add('open');
+}
+function closePickup() { document.getElementById('pickup-overlay').classList.remove('open'); pickupSlotId = null; }
+async function confirmPickup() {
+  const aceId = document.getElementById('pickup-ace').value;
+  const msg   = document.getElementById('pickup-msg');
+  if (!aceId) { msg.innerHTML = '<div class="msg msg-error">Please select your name.</div>'; return; }
+  const btn = document.getElementById('pickup-go');
+  btn.disabled = true; msg.innerHTML = '<div class="msg">Saving…</div>';
+  try {
+    await api('claimSlot', {slotId: pickupSlotId, aceId});
+    await loadAll();
+    closePickup();
+    const ace = state.aces.find(a=>a.id===aceId);
+    alert(`Done — the shift is now ${ace ? ace.name + "'s" : 'yours'}. Please confirm it from your profile.`);
+  } catch(e) {
+    btn.disabled = false;
+    msg.innerHTML = `<div class="msg msg-error">${e.message}${/Unknown action/.test(e.message) ? ' (The backend has not been updated with claimSlot yet.)' : ''}</div>`;
+  }
 }
 // ---- REQUEST TRADE ----
 function renderTradeForm() {
