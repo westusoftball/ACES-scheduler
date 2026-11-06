@@ -12,6 +12,8 @@
     --amber:#D9930D;--amber-light:#FCF0D6;--amber-dark:#6B4708;
     /* Red accent — declines, removals */
     --red:#C1272D;--red-light:#FBEAEA;--red-border:#F0BFC1;
+    /* Green — confirmed shifts */
+    --green:#1D9E75;--green-light:#E1F5EE;--green-dark:#085041;
     --blue:#1F5AA8;--blue-light:#E4EDF9;
     --gray:#5F5E5A;--gray-light:#F1EFE8;--gray-border:#D3D1C7;
     --text:#2C2C2A;--text-muted:#888780;
@@ -57,6 +59,10 @@
   .badge-expired{background:var(--gray-light);color:var(--gray);}
   .badge-open{background:var(--amber-light);color:var(--amber-dark);}
   .badge-filled{background:var(--brand-light);color:var(--brand-dark);}
+  .badge-confirmed{background:var(--green-light);color:var(--green-dark);}
+  .badge-conflict{background:var(--red-light);color:var(--red);}
+  .btn-confirm{background:var(--green-light);color:var(--green-dark);border:1px solid var(--green);}
+  .btn-confirm:hover{background:var(--green);color:#fff;}
   .grid-wrap{overflow-x:auto;}
   table{border-collapse:collapse;width:100%;font-size:13px;}
   th{background:var(--gray-light);padding:9px 12px;text-align:left;font-weight:600;border:1px solid var(--gray-border);white-space:nowrap;}
@@ -64,6 +70,21 @@
   .shift-slot{background:var(--bg-surface);border-radius:var(--radius-sm);padding:5px 8px;margin:3px 0;border-left:3px solid var(--gray-border);}
   .shift-slot.filled{border-left-color:var(--brand);}
   .shift-slot.open{border-left-color:var(--amber);}
+  .shift-slot.confirmed{border-left-color:var(--green);background:var(--green-light);}
+  .shift-slot.conflict{border-left-color:var(--red);background:var(--red-light);}
+  .shift-slot.pending{border-left-color:var(--brand);}
+  .shift-status{font-size:11px;margin-top:2px;color:var(--text-muted);}
+  .shift-slot.confirmed .shift-status{color:var(--green-dark);}
+  .shift-slot.conflict .shift-status{color:var(--red);font-weight:600;}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--text-muted);margin-bottom:12px;}
+  .legend span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
+  .legend .l-confirmed::before{background:var(--green);}
+  .legend .l-pending::before{background:var(--brand);}
+  .legend .l-conflict::before{background:var(--red);}
+  .legend .l-open::before{background:var(--amber);}
+  .toggle{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted);cursor:pointer;white-space:nowrap;}
+  .toggle input{width:auto;margin:0;}
+  details.past summary{cursor:pointer;font-size:13px;color:var(--text-muted);padding:10px 0 4px;}
   .shift-label{font-size:11px;font-weight:600;color:var(--text-muted);}
   .shift-ace{font-size:12px;color:var(--text);margin-top:1px;}
   .ace-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-light);gap:8px;}
@@ -153,10 +174,25 @@
         <select id="filter-ace" onchange="renderScheduleGrid()" style="width:180px;">
           <option value="">All ACEs</option>
         </select>
+        <select id="filter-status" onchange="renderScheduleGrid()" style="width:160px;">
+          <option value="">All statuses</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="pending">Awaiting reply</option>
+          <option value="conflict">Conflict</option>
+          <option value="open">Open</option>
+        </select>
+        <label class="toggle"><input type="checkbox" id="show-past" onchange="renderScheduleGrid()" /> Show past shifts</label>
       </div>
     </div>
     <div class="stat-grid" id="schedule-stats"></div>
+    <div id="needs-coverage"></div>
     <div class="card">
+      <div class="legend">
+        <span class="l-confirmed">Confirmed</span>
+        <span class="l-pending">Awaiting reply</span>
+        <span class="l-conflict">Conflict — needs a trade</span>
+        <span class="l-open">Open</span>
+      </div>
       <div id="schedule-grid"><div class="loading"><div class="spinner"></div>Loading…</div></div>
     </div>
   </div>
@@ -406,6 +442,24 @@ function fmtDate(iso) {
 function initials(name) {
   return (name||'').split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase();
 }
+function todayISO() {
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function isPast(s) { return String(s.date).slice(0,10) < todayISO(); }
+// Status of a slot: open (no ACE), confirmed, conflict, or pending (assigned, no reply yet).
+// An answer only counts if it came from the ACE currently assigned, so a traded shift
+// goes back to "awaiting reply" for the new person automatically.
+function slotStatus(s) {
+  if (!s.aceId) return 'open';
+  if (s.ackBy === s.aceId) {
+    if (s.ack === 'confirmed') return 'confirmed';
+    if (s.ack === 'conflict')  return 'conflict';
+  }
+  return 'pending';
+}
+const STATUS_LABEL = { open:'⚠ Open', confirmed:'✓ Confirmed', conflict:'✕ Conflict — needs a trade', pending:'Awaiting reply' };
+const STATUS_BADGE = { open:'Open', confirmed:'Confirmed', conflict:'Conflict', pending:'Awaiting reply' };
 
 // ---- SCHEDULE ----
 function renderScheduleGrid() {
@@ -426,26 +480,44 @@ function renderScheduleGrid() {
 
   const filterCampus = campusSel.value;
   const filterAce    = aceSel.value;
-
-  // Stats — always full season
-  const filled  = state.slots.filter(s=>s.aceId).length;
-  const open    = state.slots.filter(s=>!s.aceId).length;
-  const pending = state.trades.filter(t=>t.status==='pending').length;
+  const filterStatus = document.getElementById('filter-status').value;
+  const showPast     = document.getElementById('show-past').checked;
+  // Stats — upcoming shifts only (past ones are history)
+  const upcoming = state.slots.filter(s=>!isPast(s));
+  const count    = st => upcoming.filter(s=>slotStatus(s)===st).length;
+  const pending  = state.trades.filter(t=>t.status==='pending').length;
   document.getElementById('schedule-stats').innerHTML = `
-    <div class="stat"><div class="stat-value">${state.slots.length}</div><div class="stat-label">Season shifts</div></div>
-    <div class="stat"><div class="stat-value">${filled}</div><div class="stat-label">Filled</div></div>
-    <div class="stat"><div class="stat-value">${open}</div><div class="stat-label">Open</div></div>
+    <div class="stat"><div class="stat-value">${upcoming.length}</div><div class="stat-label">Upcoming shifts</div></div>
+    <div class="stat"><div class="stat-value" style="color:var(--green-dark);">${count('confirmed')}</div><div class="stat-label">Confirmed</div></div>
+    <div class="stat"><div class="stat-value">${count('pending')}</div><div class="stat-label">Awaiting reply</div></div>
+    <div class="stat"><div class="stat-value" style="color:var(--red);">${count('conflict')}</div><div class="stat-label">Conflicts</div></div>
+    <div class="stat"><div class="stat-value" style="color:var(--amber-dark);">${count('open')}</div><div class="stat-label">Open</div></div>
     <div class="stat"><div class="stat-value">${pending}</div><div class="stat-label">Pending trades</div></div>`;
-
+  // Needs coverage — upcoming shifts that are open or flagged as a conflict
+  const needs = upcoming.filter(s=>['conflict','open'].includes(slotStatus(s)))
+                        .sort((a,b)=>a.date.localeCompare(b.date));
+  document.getElementById('needs-coverage').innerHTML = needs.length ? `
+    <div class="card" style="border-left:4px solid var(--red);">
+      <div class="card-title">Needs coverage (${needs.length})</div>
+      ${needs.map(s=>{
+        const ace=state.aces.find(a=>a.id===s.aceId); const st=slotStatus(s);
+        return `<div class="shift-list-item">
+          <div><div style="font-weight:500;">${slotLabel(s)}</div>
+            <div style="font-size:12px;color:var(--text-muted);">${st==='conflict'?(ace?.name||'?')+' has a conflict and needs a trade':'No ACE assigned'}</div></div>
+          <span class="badge badge-${st}">${STATUS_BADGE[st]}</span>
+        </div>`;}).join('')}
+    </div>` : '';
   const grid = document.getElementById('schedule-grid');
-
   // Apply filters
   let slots = [...state.slots];
+  if (!showPast)    slots = slots.filter(s=>!isPast(s));
   if (filterCampus) slots = slots.filter(s=>s.campus===filterCampus);
   if (filterAce)    slots = slots.filter(s=>s.aceId===filterAce);
-
+  if (filterStatus) slots = slots.filter(s=>slotStatus(s)===filterStatus);
   if (!slots.length) {
-    grid.innerHTML = '<div class="empty">No shifts match the selected filters.</div>';
+    grid.innerHTML = '<div class="empty">' + (showPast || filterCampus || filterAce || filterStatus
+      ? 'No shifts match the selected filters.'
+      : 'No upcoming shifts. Tick "Show past shifts" to see the full season.') + '</div>';
     return;
   }
 
@@ -473,9 +545,11 @@ function renderScheduleGrid() {
         <td style="min-width:0;">` +
         daySlots.map(s => {
           const ace = s.aceId ? state.aces.find(a=>a.id===s.aceId) : null;
-          return `<div class="shift-slot ${ace?'filled':'open'}" style="display:inline-block;margin:3px 4px 3px 0;min-width:200px;">
+          const st  = slotStatus(s);
+          return `<div class="shift-slot ${st}" style="display:inline-block;margin:3px 4px 3px 0;min-width:200px;">
             <div class="shift-label">${s.shift}</div>
             <div class="shift-ace">${ace?ace.name:'⚠ Open'}</div>
+            ${st!=='open'?`<div class="shift-status">${STATUS_LABEL[st]}</div>`:''}
           </div>`;
         }).join('') +
         `</td></tr>`;
@@ -549,20 +623,42 @@ function renderProfile() {
   }
   html+=`</div></div>`;
 
-  // Season shifts card
+  // Shifts card: upcoming first (with confirm / conflict), past collapsed below
+  const upcomingMine = mySlots.filter(s=>!isPast(s));
+  const pastMine     = mySlots.filter(isPast);
+  const awaiting     = upcomingMine.filter(s=>slotStatus(s)==='pending').length;
   html+=`<div class="card" style="margin:0;">
-    <div class="card-title">Season shifts (${mySlots.length})</div>`;
-  if (mySlots.length) {
-    html+=mySlots.map(s=>`
-      <div class="shift-list-item">
+    <div class="card-title">Upcoming shifts (${upcomingMine.length})</div>
+    ${awaiting?`<div style="font-size:13px;color:var(--text-muted);margin:-6px 0 10px;">Please confirm each shift, or flag a conflict so a trade can be arranged.</div>`:''}`;
+  if (upcomingMine.length) {
+    html+=upcomingMine.map(s=>{
+      const st=slotStatus(s);
+      return `
+      <div class="shift-list-item" style="flex-wrap:wrap;">
         <div>
           <div style="font-weight:500;">${fmtDate(s.date)}</div>
           <div style="font-size:12px;color:var(--text-muted);">${s.campus} · ${s.shift}</div>
         </div>
-        <span class="badge badge-filled">Assigned</span>
-      </div>`).join('');
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+          <span class="badge badge-${st}">${STATUS_BADGE[st]}</span>
+          ${st!=='confirmed'?`<button class="btn btn-confirm btn-sm" onclick="setAck('${s.id}','confirmed')">Confirm</button>`:''}
+          ${st!=='conflict' ?`<button class="btn btn-deny btn-sm" onclick="setAck('${s.id}','conflict')">Conflict</button>`:''}
+          ${st==='conflict' ?`<button class="btn btn-primary btn-sm" onclick="goToTrade('${s.id}')">Request trade</button>`:''}
+        </div>
+      </div>`;}).join('');
   } else {
-    html+='<div class="empty" style="padding:16px;">No shifts assigned</div>';
+    html+='<div class="empty" style="padding:16px;">No upcoming shifts</div>';
+  }
+  if (pastMine.length) {
+    html+=`<details class="past"><summary>Past shifts (${pastMine.length})</summary>`+
+      pastMine.slice().reverse().map(s=>`
+      <div class="shift-list-item" style="opacity:.7;">
+        <div>
+          <div style="font-weight:500;">${fmtDate(s.date)}</div>
+          <div style="font-size:12px;color:var(--text-muted);">${s.campus} · ${s.shift}</div>
+        </div>
+        <span class="badge badge-expired">Done</span>
+      </div>`).join('')+`</details>`;
   }
   html+=`</div></div>`; // close grid
 
@@ -593,6 +689,33 @@ function renderProfile() {
   el.innerHTML = html;
 }
 
+// ---- SHIFT ACKNOWLEDGEMENT ----
+async function setAck(slotId, status) {
+  const slot  = state.slots.find(s=>s.id===slotId);
+  const aceId = document.getElementById('profile-ace-select').value;
+  if (!slot || !aceId) return;
+  if (status==='conflict' && !confirm('Flag a conflict for this shift?\n\nCoordinators will see it needs coverage. Please also use "Request trade" to find someone to take it.')) return;
+  try {
+    await api('setAck', {slotId, status, aceId});
+    slot.ack = status; slot.ackBy = aceId; slot.ackAt = new Date().toISOString();
+    renderProfile(); renderScheduleGrid();
+  } catch(e) {
+    alert('Could not save: ' + e.message + (/Unknown action/.test(e.message) ? '\n\n(The backend has not been updated with setAck yet.)' : ''));
+  }
+}
+// Jump to the trade form with this shift pre-selected as the one being given up.
+function goToTrade(slotId) {
+  const slot = state.slots.find(s=>s.id===slotId);
+  if (!slot) return;
+  const ace = state.aces.find(a=>a.id===slot.aceId);
+  document.querySelectorAll('.tab')[2].click();
+  document.getElementById('trade-from').value = slot.aceId;
+  populateFromSlots();
+  document.getElementById('trade-from-slot').value = slotId;
+  if (ace) document.getElementById('trade-submitter').value = ace.name;
+  updatePreview();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
 // ---- REQUEST TRADE ----
 function renderTradeForm() {
   const sorted=[...state.aces].sort((a,b)=>a.name.localeCompare(b.name));
@@ -609,7 +732,7 @@ function populateFromSlots() {
   const fromId=document.getElementById('trade-from').value;
   const sel=document.getElementById('trade-from-slot');
   if(!fromId){sel.innerHTML='<option value="">— Select your name first —</option>';updatePreview();return;}
-  const mySlots=state.slots.filter(s=>s.aceId===fromId).sort((a,b)=>a.date.localeCompare(b.date));
+  const mySlots=state.slots.filter(s=>s.aceId===fromId&&!isPast(s)).sort((a,b)=>a.date.localeCompare(b.date));
   if(!mySlots.length){sel.innerHTML='<option value="">No assigned shifts found</option>';updatePreview();return;}
   sel.innerHTML=mySlots.map(s=>`<option value="${s.id}">${slotLabel(s)}</option>`).join('');
   sel.onchange=updatePreview;
@@ -620,7 +743,7 @@ function populateToSlots() {
   const toId=document.getElementById('trade-to').value;
   const sel=document.getElementById('trade-to-slot');
   if(!toId){sel.innerHTML='<option value="">— Select their name first —</option>';updatePreview();return;}
-  const theirSlots=state.slots.filter(s=>s.aceId===toId).sort((a,b)=>a.date.localeCompare(b.date));
+  const theirSlots=state.slots.filter(s=>s.aceId===toId&&!isPast(s)).sort((a,b)=>a.date.localeCompare(b.date));
   let html='<option value="">Nothing — they are just covering for me</option>';
   html+=theirSlots.map(s=>`<option value="${s.id}">${slotLabel(s)}</option>`).join('');
   sel.innerHTML=html;

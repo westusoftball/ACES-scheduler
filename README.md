@@ -21,6 +21,34 @@ The deployed `Code.gs` is the source of truth for the backend. The copy in
 `apps-script/` here holds only add-on scripts; paste them into the Apps Script
 project as separate files.
 
+## Shift acknowledgement (confirm / conflict)
+
+Each ACE opens **Profile**, picks their name, and clicks **Confirm** or
+**Conflict** on each upcoming shift. The schedule colours shifts green
+(confirmed), blue (awaiting reply), red (conflict) or amber (open), and lists
+conflicts and open shifts under **Needs coverage** at the top. A conflicted
+shift has a **Request trade** button that pre-fills the trade form.
+
+The status lives in three columns on the `Slots` tab (`ack`, `ackBy`, `ackAt`),
+created automatically on first use. An answer only counts while `ackBy` still
+matches the slot's `aceId`, so a traded shift returns to "awaiting reply" for
+the new person.
+
+**One-time backend install** (the site shows "Unknown action: setAck" until done):
+
+1. Apps Script → **+** → Script → name it `Ack` → paste `apps-script/Ack.gs` → save.
+2. In `Code.gs`, inside the `switch` in `handleRequest`, add:
+   ```javascript
+   case 'setAck':          result = setAck(p); break;
+   ```
+3. **Deploy → Manage deployments → pencil → Version: New version → Deploy.**
+
+## Past shifts
+
+The schedule hides dates before today. Tick **Show past shifts** to see the
+whole season. Profiles list upcoming shifts first and fold past ones under
+"Past shifts". The trade form only offers upcoming shifts.
+
 ## Loading the Fall 2026 tournament shifts
 
 `apps-script/Tournament.gs` adds the 27 tournament shifts (Nov 9–14, South
