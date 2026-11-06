@@ -399,7 +399,13 @@ window.addEventListener('load', async () => { await loadAll(); });
 
 async function loadAll() {
   setSyncStatus('Syncing…');
-  try { state = await api('getAll'); render(); setSyncStatus(''); }
+  try {
+    state = await api('getAll');
+    // Sheets sometimes stores a date cell as a real date, which arrives as an ISO
+    // timestamp. Keep only the calendar day so every date is 'YYYY-MM-DD'.
+    state.slots.forEach(s => { s.date = String(s.date || '').slice(0, 10); });
+    render(); setSyncStatus('');
+  }
   catch(e) { setSyncStatus('⚠ Could not connect'); }
 }
 
@@ -997,7 +1003,9 @@ async function addSlot(){
   if(!campus||!date){msg.innerHTML='<div class="msg msg-error">Campus and date required.</div>';return;}
   msg.innerHTML='<div class="msg">Saving…</div>';
   try{
-    const res=await api('addSlot',{campus,date,shift,aceId});
+    // Leading apostrophe makes Sheets store the date as text ('YYYY-MM-DD'),
+    // not a Date cell, so it round-trips exactly like the imported rows.
+    const res=await api('addSlot',{campus,date:"'"+date,shift,aceId});
     state.slots.push({id:res.id,campus,date,shift,aceId});
     msg.innerHTML='<div class="msg msg-success">Slot added.</div>';
     renderScheduleGrid();
