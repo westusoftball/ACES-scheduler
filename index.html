@@ -289,9 +289,8 @@
             <select id="slot-shift">
               <option>5:00-7:00pm</option><option>7:00-9:00pm</option>
               <option>8:30-10:30am</option><option>10:30am-12:30pm</option>
-              <option>12:30-2:30pm</option><option>Morning (9–11am)</option>
-              <option>Midday (11am–1pm)</option><option>Afternoon (1–3pm)</option>
-              <option>Evening (5–7pm)</option><option>Evening (7–9pm)</option>
+              <option>12:30-2:30pm</option><option>2:30-4:30pm</option>
+              <option>4:30-6:30pm</option>
             </select>
           </div>
           <div class="field"><label>Assign ACE</label><select id="slot-ace"><option value="">— Unassigned —</option></select></div>
@@ -758,8 +757,16 @@ function renderCampusChips(){
     :'<span style="font-size:13px;color:var(--text-muted);">No campuses yet.</span>';
 }
 
+// Standard shift times, in time order. Any other shift label already in the
+// schedule is appended so coordinators can reuse it.
+const SHIFT_OPTIONS=['8:30-10:30am','10:30am-12:30pm','12:30-2:30pm','2:30-4:30pm','4:30-6:30pm','5:00-7:00pm','7:00-9:00pm'];
 function refreshSlotSelects(){
   document.getElementById('slot-campus').innerHTML=state.campuses.map(c=>`<option>${c}</option>`).join('');
+  const shiftSel=document.getElementById('slot-shift');
+  const prevShift=shiftSel.value;
+  const shifts=[...new Set([...SHIFT_OPTIONS,...state.slots.map(s=>s.shift).filter(Boolean)])];
+  shiftSel.innerHTML=shifts.map(s=>`<option>${s}</option>`).join('');
+  if(shifts.includes(prevShift)) shiftSel.value=prevShift;
   const aceOpts='<option value="">— Unassigned —</option>'+[...state.aces].sort((a,b)=>a.name.localeCompare(b.name)).map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
   document.getElementById('slot-ace').innerHTML=aceOpts;
   const aceOptsReq='<option value="">Select ACE</option>'+[...state.aces].sort((a,b)=>a.name.localeCompare(b.name)).map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
