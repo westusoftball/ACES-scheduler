@@ -14,42 +14,43 @@
 // Edit the TOURNAMENT_SHIFTS table below before running if assignments
 // changed since the 11/3 plan. Running loadTournamentShifts twice is safe:
 // a slot that already exists (same date + campus + shift) is skipped.
+// Shift labels follow the fall-season convention in the Sheet: start time only.
 
 const TOURNAMENT_SHIFTS = [
   // date,         campus,          shift,             ACE name
   // ---- Monday 11/9 ----
-  ['2026-11-09', 'South Campus', '5:00-7:00pm',     'David Block'],
-  ['2026-11-09', 'South Campus', '7:00-9:00pm',     'Colin Bear'],
-  ['2026-11-09', 'McGovern',     '5:00-7:00pm',     'Carter Wiley'],
-  ['2026-11-09', 'McGovern',     '7:00-9:00pm',     'Ross Thompson'],
-  ['2026-11-09', 'Bayland',      '5:00-7:00pm',     'Frank Ortiz'],
-  ['2026-11-09', 'Bayland',      '7:00-9:00pm',     'Mac McDaniel'],
+  ['2026-11-09', 'South Campus',  '5:00 PM',   'David Block'],
+  ['2026-11-09', 'South Campus',  '7:00 PM',   'Colin Bear'],
+  ['2026-11-09', 'McGovern',      '5:00 PM',   'Carter Wiley'],
+  ['2026-11-09', 'McGovern',      '7:00 PM',   'Ross Thompson'],
+  ['2026-11-09', 'Bayland',       '5:00 PM',   'Frank Ortiz'],
+  ['2026-11-09', 'Bayland',       '7:00 PM',   'Mac McDaniel'],
   // ---- Tuesday 11/10 ----
-  ['2026-11-10', 'South Campus', '5:00-7:00pm',     'Ryan Hardin'],
-  ['2026-11-10', 'South Campus', '7:00-9:00pm',     'Chris Howard'],
-  ['2026-11-10', 'Bayland',      '5:00-7:00pm',     'Seve Ramirez'],
-  ['2026-11-10', 'Bayland',      '7:00-9:00pm',     'Justin Gregg'],
+  ['2026-11-10', 'South Campus',  '5:00 PM',   'Ryan Hardin'],
+  ['2026-11-10', 'South Campus',  '7:00 PM',   'Chris Howard'],
+  ['2026-11-10', 'Bayland',       '5:00 PM',   'Seve Ramirez'],
+  ['2026-11-10', 'Bayland',       '7:00 PM',   'Justin Gregg'],
   // ---- Wednesday 11/11 ----
-  ['2026-11-11', 'South Campus', '5:00-7:00pm',     'Eric Danziger'],
-  ['2026-11-11', 'South Campus', '7:00-9:00pm',     'David Whitley'],
-  ['2026-11-11', 'Bayland',      '5:00-7:00pm',     'Stephanie Landis'],
-  ['2026-11-11', 'Bayland',      '7:00-9:00pm',     'Kyle Jung'],
+  ['2026-11-11', 'South Campus',  '5:00 PM',   'Eric Danziger'],
+  ['2026-11-11', 'South Campus',  '7:00 PM',   'David Whitley'],
+  ['2026-11-11', 'Bayland',       '5:00 PM',   'Stephanie Landis'],
+  ['2026-11-11', 'Bayland',       '7:00 PM',   'Kyle Jung'],
   // ---- Thursday 11/12 ----
-  ['2026-11-12', 'South Campus', '5:00-7:00pm',     'Patrick Cresap'],
-  ['2026-11-12', 'South Campus', '7:00-9:00pm',     'Richard Falcone'],
-  ['2026-11-12', 'Bayland',      '5:00-7:00pm',     'Jim McDade'],
-  ['2026-11-12', 'Bayland',      '7:00-9:00pm',     'Lee Donovan'],
+  ['2026-11-12', 'South Campus',  '5:00 PM',   'Patrick Cresap'],
+  ['2026-11-12', 'South Campus',  '7:00 PM',   'Richard Falcone'],
+  ['2026-11-12', 'Bayland',       '5:00 PM',   'Jim McDade'],
+  ['2026-11-12', 'Bayland',       '7:00 PM',   'Lee Donovan'],
   // ---- Friday 11/13 ----
-  ['2026-11-13', 'South Campus', '5:00-7:00pm',     'Marko Hirvensalo'],
-  ['2026-11-13', 'South Campus', '7:00-9:00pm',     'Chad Kuck'],
-  ['2026-11-13', 'Bayland',      '5:00-7:00pm',     'Greg McEldowney'],
-  ['2026-11-13', 'Bayland',      '7:00-9:00pm',     'Matt Moake'],
+  ['2026-11-13', 'South Campus',  '5:00 PM',   'Marko Hirvensalo'],
+  ['2026-11-13', 'South Campus',  '7:00 PM',   'Chad Kuck'],
+  ['2026-11-13', 'Bayland',       '5:00 PM',   'Greg McEldowney'],
+  ['2026-11-13', 'Bayland',       '7:00 PM',   'Matt Moake'],
   // ---- Saturday 11/14 (South Campus only) ----
-  ['2026-11-14', 'South Campus', '8:30-10:30am',    'Dennis Stasio'],
-  ['2026-11-14', 'South Campus', '10:30am-12:30pm', 'Collins Free'],
-  ['2026-11-14', 'South Campus', '12:30-2:30pm',    'Mike Kim'],
-  ['2026-11-14', 'South Campus', '2:30-4:30pm',     'Russell Gray'],
-  ['2026-11-14', 'South Campus', '4:30-6:30pm',     'Carlos Valdez'],
+  ['2026-11-14', 'South Campus',  '8:30 AM',   'Dennis Stasio'],
+  ['2026-11-14', 'South Campus',  '10:30 AM',  'Collins Free'],
+  ['2026-11-14', 'South Campus',  '12:30 PM',  'Mike Kim'],
+  ['2026-11-14', 'South Campus',  '2:30 PM',   'Russell Gray'],
+  ['2026-11-14', 'South Campus',  '4:30 PM',   'Carlos Valdez'],
 ];
 
 // If the Campuses tab already has a campus whose name contains the value

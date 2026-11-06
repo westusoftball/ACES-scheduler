@@ -287,10 +287,10 @@
           <div class="field"><label>Date</label><input id="slot-date" type="date" /></div>
           <div class="field"><label>Shift time</label>
             <select id="slot-shift">
-              <option>5:00-7:00pm</option><option>7:00-9:00pm</option>
-              <option>8:30-10:30am</option><option>10:30am-12:30pm</option>
-              <option>12:30-2:30pm</option><option>2:30-4:30pm</option>
-              <option>4:30-6:30pm</option>
+              <option>5:30 PM</option><option>7:15 PM</option>
+              <option>5:00 PM</option><option>7:00 PM</option>
+              <option>8:30 AM</option><option>10:30 AM</option><option>12:30 PM</option>
+              <option>2:30 PM</option><option>4:30 PM</option>
             </select>
           </div>
           <div class="field"><label>Assign ACE</label><select id="slot-ace"><option value="">— Unassigned —</option></select></div>
@@ -759,7 +759,7 @@ function renderCampusChips(){
 
 // Standard shift times, in time order. Any other shift label already in the
 // schedule is appended so coordinators can reuse it.
-const SHIFT_OPTIONS=['8:30-10:30am','10:30am-12:30pm','12:30-2:30pm','2:30-4:30pm','4:30-6:30pm','5:00-7:00pm','7:00-9:00pm'];
+const SHIFT_OPTIONS=['8:30 AM','10:30 AM','12:30 PM','2:30 PM','4:30 PM','5:00 PM','5:30 PM','7:00 PM','7:15 PM'];
 function refreshSlotSelects(){
   document.getElementById('slot-campus').innerHTML=state.campuses.map(c=>`<option>${c}</option>`).join('');
   const shiftSel=document.getElementById('slot-shift');
