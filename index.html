@@ -577,7 +577,7 @@ function renderScheduleGrid() {
       <div class="grid-wrap"><table><thead><tr><th style="white-space:nowrap;min-width:80px;">Date</th><th>Shifts</th></tr></thead><tbody>`;
 
     dates.forEach(date => {
-      const daySlots = campusSlots.filter(s=>s.date===date);
+      const daySlots = campusSlots.filter(s=>s.date===date).sort((a,b)=>shiftMinutes(a.shift)-shiftMinutes(b.shift));
       html += `<tr>
         <td style="white-space:nowrap;font-weight:500;vertical-align:top;padding-top:10px;">${fmtDate(date)}</td>
         <td style="min-width:0;">` +
@@ -802,6 +802,7 @@ function renderTradeForm() {
   document.getElementById('trade-to-slot').innerHTML='<option value="">— Select their name first —</option>';
 }
 
+function shiftMinutes(t){const m=/^(\d{1,2}):(\d\d)\s*([AP]M)$/i.exec(String(t||'').trim());if(!m)return 9999;let h=+m[1]%12;if(m[3].toUpperCase()==='PM')h+=12;return h*60+ +m[2];}
 function slotLabel(s){return `${fmtDate(s.date)} — ${s.campus} — ${s.shift}`;}
 
 function populateFromSlots() {
